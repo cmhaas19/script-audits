@@ -27,7 +27,13 @@ var getAESAppArtifacts = function() {
     // Return the sysIDs of all AES generated Apps
     //
     var aesApps = (function(){
+        var apps = {};
+
         var gr = new GlideRecord("sys_app_template_output_var_instance");
+
+        if(!gr.isValid())
+            return apps;
+
         gr.setWorkflow(false);
         gr.addEncodedQuery("name=app_sys_id^template_instance.app_template=true^template_instance.state=complete");
         gr.query();
@@ -43,6 +49,9 @@ var getAESAppArtifacts = function() {
 
         return apps;
     })();
+
+    if(Object.keys(aesApps).length == 0)
+        return;
 
     //
     // Now get all the scopes for the AES generated apps
@@ -61,6 +70,9 @@ var getAESAppArtifacts = function() {
 
         return scopedApps;
     })();
+
+    if(Object.keys(scopes).length == 0)
+        return;
 
     //
     // Using the scopes, get the artifacts
@@ -94,14 +106,11 @@ var getAESAppArtifacts = function() {
 (function(){
 
     var results = {
-        installed: isAppEngineStudioInstalled()
+        installed: isAppEngineStudioInstalled(),
+        companyCode: getCompanyCode(),
+        appArtifacts: getAESAppArtifacts()
     };
 
-    if(results.installed) {
-        results.companyCode = getCompanyCode();
-        results.appArtifacts = getAESAppArtifacts();
-
-        gs.print(JSON.stringify(results));
-    }
+    gs.print(JSON.stringify(results));
 
 })();

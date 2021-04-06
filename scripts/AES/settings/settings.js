@@ -134,7 +134,6 @@ var getDeveloperRoles = function() {
 	};
 };
 
-
 var getGroupsWithRole = function(){
     var groups = {};
 
@@ -188,12 +187,28 @@ var getInstallationDetails = function() {
     gr.query();
 
     var installationDetails = {
-        installed: gr.next()
+        installed: false,
+        licensed: false,
+        licensedPlugin: false,
+        licensedApp: false,
+        buildName: gs.getProperty("glide.buildname"),
+        buildTag: gs.getProperty("glide.buildtag")
     };
 
-    if(installationDetails.installed) {
+    if(gr.next()) {
+        installationDetails.installed = true;
         installationDetails.installedOn = gr.getValue("install_date");
     }
+
+    try {
+        installationDetails.licensedPlugin = sn_lef.GlideEntitlement.hasLicenseForApp(CONSTANTS.AES_PLUGIN_ID);
+    } catch (e) { }
+    
+    try {
+        installationDetails.licensedApp = sn_lef.GlideEntitlement.hasLicenseForApp(CONSTANTS.AES_SCOPE);
+    } catch (e) { }
+
+    installationDetails.licensed = (installationDetails.licensedPlugin || installationDetails.licensedApp);
 
     return installationDetails;
 };
@@ -225,26 +240,6 @@ var getPipelineCount = function() {
     gr.query();
 
     return (gr.next() ? parseInt(gr.getAggregate("COUNT")) : 0);
-};
-
-var getLicenseInfo = function() {
-    var licenseInfo = {
-        licensed: false,
-        licensedPlugin: false,
-        licensedApp: false
-    };
-	
-	try {
-		licenseInfo.licensedPlugin = sn_lef.GlideEntitlement.hasLicenseForApp(CONSTANTS.AES_PLUGIN_ID);
-	} catch (e) { }
-	
-	try {
-        licenseInfo.licensedApp = sn_lef.GlideEntitlement.hasLicenseForApp(CONSTANTS.AES_SCOPE);
-    } catch (e) { }
-
-    licenseInfo.licensed = (licenseInfo.licensedPlugin || licenseInfo.licensedApp);
-
-    return licenseInfo;
 };
 
 var getSystemPropertySettings = function() {
@@ -311,7 +306,6 @@ var getRoleComparisons = function() {
     if(results.installationDetails.installed) {
         results.roleComparison = getRoleComparisons();
         results.systemPropertySettings = getSystemPropertySettings();
-        results.licenseInfo = getLicenseInfo();
         results.pipelineCount = getPipelineCount();
         results.guidedSetupStatus = getGuidedSetupStatus();
         results.developerRoles = getDeveloperRoles();
