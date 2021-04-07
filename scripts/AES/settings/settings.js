@@ -103,62 +103,14 @@ var getGuidedSetupStatus = function() {
 	return setupStatus;
 };
 
-var getDeveloperRoles = function() {
-
-    var getUserCount = function(query) {
-        var gr = new GlideAggregate("sys_user_has_role");
-		gr.setWorkflow(false);	
-		gr.addEncodedQuery(query);
-		gr.groupBy("user");
-		gr.query();
-
-		return (gr.next() ? gr.getRowCount() : 0);
-    };
-
-	var getCountsForRole = function(role) {
-        var days = [30, 60, 90, 180, 360];
-        var results = {
-            total: getUserCount("role=" + role + "^user.active=true")
-        };
-
-        days.forEach(function(daysAgo) {
-            results[daysAgo] = getUserCount("role=" + role + "^user.active=true^user.last_login_timeISNOTEMPTY^user.last_login_time>javascript:gs.daysAgo(" + daysAgo + ")");
-        });
-
-        return results;
-	};
-
-	return {
-		aesUsers: getCountsForRole(CONSTANTS.AES_USER_ROLE),
-		delegatedDevelopers: getCountsForRole(CONSTANTS.DELEGATED_DEV_ROLE)
-	};
-};
-
-var getGroupsWithRole = function(){
-    var groups = {};
-
-    var gr = new GlideAggregate("sys_user_grmember");
-    gr.setWorkflow(false);
-    gr.groupBy("group");
-    gr.addAggregate("COUNT");
-    gr.addQuery("user.active=true");
-
-    var groupRoles = gr.addJoinQuery("sys_group_has_role", "group", "group");
-	groupRoles.addCondition("role", "=", CONSTANTS.AES_USER_ROLE);
-
-    gr.query();
-
-    while(gr.next()){
-        groups[gr.group.getDisplayValue()] = parseInt(gr.getAggregate("COUNT"));
-    }
-
-    return groups;
-};
 
 var getApplicationUsage = function() {
     var appUsage = {};
 
     var gr = new GlideAggregate("ua_app_usage");
+    if(!gr.isValid())
+        return appUsage;
+
     gr.setWorkflow(false);	
     gr.addEncodedQuery("app_name=App Engine Studio^ORapp_name=Studio^ORapp_name=Table Builder");
     gr.addAggregate("COUNT");
@@ -214,12 +166,15 @@ var getInstallationDetails = function() {
 };
 
 var getDeploymentRequests = function() {
+    var data = {};
+
     var gr = new GlideRecord("sn_app_eng_studio_deployment_request");
+    if(!gr.isValid())
+        return data;
+
     gr.setWorkflow(false);
     gr.addEncodedQuery("state=3^app_sys_id!=NULL");
     gr.query();
-
-    var data = {};
 
     while(gr.next()){
         data[gr.getUniqueValue()] = {
@@ -234,6 +189,10 @@ var getDeploymentRequests = function() {
 
 var getPipelineCount = function() {
     var gr = new GlideAggregate("sn_app_eng_studio_pipeline");
+
+    if(!gr.isValid())
+        return 0;
+
     gr.setWorkflow(false);
     gr.addEncodedQuery("active=true");
     gr.addAggregate("COUNT");
@@ -257,63 +216,18 @@ var getSystemPropertySettings = function() {
     return results;
 };
 
-var getRoleComparisons = function() {
-
-    var getUsersByRole = function(role) {
-        var gr = new GlideRecord("sys_user_has_role");
-        gr.setWorkflow(false);	
-		gr.addEncodedQuery("user.active=true^role=" + role + "^user.last_login_timeISNOTEMPTY^user.last_login_time>javascript:gs.daysAgo(90)");
-        gr.query();
-
-        var users = {};
-
-        while(gr.next()){
-            users[gr.getValue("user")] = gr.getValue("user");
-        }
-
-        return users;
-    };
-
-    var compareUsers = function(usersA, usersB) {
-        var count = 0;
-
-        for(var userId in usersA){
-            if(usersB[userId] == undefined)
-                count++;
-        }
-
-        return count;
-    };
-
-    var delegatedDevs = getUsersByRole(CONSTANTS.DELEGATED_DEV_ROLE);
-    var aesUsers = getUsersByRole(CONSTANTS.AES_USER_ROLE);
-
-    return  {
-        delegatedDevCount: Object.keys(delegatedDevs).length,
-        aesUserCount: Object.keys(aesUsers).length,
-        delegatedDevsNotAlsoAESUsers: compareUsers(delegatedDevs, aesUsers),
-        aesUsersNotAlsoDelegatedDevs: compareUsers(aesUsers, delegatedDevs)
-    };
-
-};
 
 (function(){
 
     var results = {
-        installationDetails: getInstallationDetails()
+        installationDetails: getInstallationDetails(),
+        applicationUsage: getApplicationUsage(),
+        systemPropertySettings: getSystemPropertySettings(),
+        pipelineCount: getPipelineCount(),
+        guidedSetupStatus: getGuidedSetupStatus(),
+        deploymentRequests: getDeploymentRequests()
     };
 
-    if(results.installationDetails.installed) {
-        results.roleComparison = getRoleComparisons();
-        results.systemPropertySettings = getSystemPropertySettings();
-        results.pipelineCount = getPipelineCount();
-        results.guidedSetupStatus = getGuidedSetupStatus();
-        results.developerRoles = getDeveloperRoles();
-        results.groupsWithAESRole = getGroupsWithRole();
-        results.applicationUsage = getApplicationUsage();
-        results.deploymentRequests = getDeploymentRequests();
-    
-        gs.print(JSON.stringify(results));
-    }
+    gs.print(JSON.stringify(results));
 
 })();
