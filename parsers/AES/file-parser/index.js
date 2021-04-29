@@ -13,7 +13,7 @@ var loadInstanceData = () => {
 		loadAccountData().then((accounts) => {
 			var instances = {};
 
-			fastCsv.parseFile("../../instance-data/instances.csv")
+			fastCsv.parseFile("../../instance-data/" + FILE_DIRECTORY + "/instances.csv")
 				.on("data", data => {
 					var instanceName = data[0],
 						accountNo = data[2];

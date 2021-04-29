@@ -3,6 +3,7 @@ var CONSTANTS = {
     GUIDED_SETUP_ID: "411b157f0f602010310be3d1df767e7b",
     AES_USER_ROLE: "97f4a0c20f123300e54f3c71df767ea2",
     DELEGATED_DEV_ROLE: "a8772c23673302006cc275f557415ad4",
+    SOURCE_CONTROL_ROLE: "",
     AES_SCOPE: "sn_app_eng_studio",
     AES_PLUGIN_ID: "com.snc.app-engine-studio"
 };
@@ -34,7 +35,8 @@ var getDeveloperRoles = function() {
 
 	return {
 		aesUsers: getCountsForRole(CONSTANTS.AES_USER_ROLE),
-		delegatedDevelopers: getCountsForRole(CONSTANTS.DELEGATED_DEV_ROLE)
+		delegatedDevelopers: getCountsForRole(CONSTANTS.DELEGATED_DEV_ROLE),
+        sourceControlUsers: getCountsForRole(CONSTANTS.SOURCE_CONTROL_ROLE)
 	};
 };
 
