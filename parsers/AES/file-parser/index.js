@@ -1,5 +1,6 @@
 const ExcelJS = require('exceljs');
 const fastCsv = require("fast-csv");
+const fs = require('fs')
 const moment = require('moment');
 const EMPTY_PAYLOAD = "Empty Payload";
 const AUDIT_STATE_COMPLETED = "Completed";
@@ -77,12 +78,11 @@ var parseCsvFile = (propertyName, auditData) => {
 	var promise = new Promise((resolve, reject) => {
 		fastCsv.parseFile(fileName).on("data", data => {
 			var row = {
-				instanceName: data[4],
-				auditState: data[1],
-				errorDefinition: data[2],
-				errorDescription: data[3],
-				success: (data[1] == AUDIT_STATE_COMPLETED),
-				data: parsePayload(data[6])
+				instanceName: data[2],
+				auditState: data[0],
+				errorDescription: data[1],
+				success: (data[0] == AUDIT_STATE_COMPLETED),
+				data: parsePayload(data[3])
 			};
 
             auditData[propertyName].push(row);
@@ -162,7 +162,7 @@ var loadAllFiles = (instances) => {
 var writeWorkbook = (auditData) => {
     var promise = new Promise((resolve, reject) => {
         var wb = new ExcelJS.Workbook();
-        var fileName = "../" + FILE_DIRECTORY + "/processed-results-" + moment().format("YYYY-MM-DD") + ".xlsx";
+        var fileName = "../" + FILE_DIRECTORY + "/processed-results.xlsx";
 
         var generateColumns = (values) => {
             var columns = [
@@ -187,6 +187,36 @@ var writeWorkbook = (auditData) => {
 
             return rowValues.concat(values);
         };
+
+        var overviewData = {
+            lastUpdated: () => {
+                return fs.statSync("../" + FILE_DIRECTORY + "/settings.csv").mtime;
+            },
+            instances: {
+                successful: 0,
+                excluded: 0,
+                errors: 0
+            },
+            totalCustomers: {},
+            installs: {
+                instances: 0,
+                customers: {}
+            },
+            apps: {
+                totalCreated: 0,
+                totalInProduction: 0
+            }
+        };
+
+        //
+        // Start the overview sheet here so it's first
+        //
+        var overviewSheet = wb.addWorksheet('Overview');
+        overviewSheet.columns = [
+            { header: '', width: 34 },
+            { header: '', width: 34 }
+        ];
+
 
         //
         // Settings Worksheets
@@ -245,6 +275,11 @@ var writeWorkbook = (auditData) => {
                             if(row.data.deploymentRequests){
                                 deploymentCount = Object.keys(row.data.deploymentRequests).length;
                             }
+
+                            if(details.installed){
+                                overviewData.installs.instances++;
+                                overviewData.installs.customers[instance.accountInfo.customer] = true;
+                            }   
         
                             values.push(deploymentCount);
         
@@ -275,6 +310,9 @@ var writeWorkbook = (auditData) => {
                             }
                         }
                     });
+
+                    if(instance.accountInfo && instance.accountInfo.customer)
+                        overviewData.totalCustomers[instance.accountInfo.customer] = true;
                 }
             }
 
@@ -358,6 +396,9 @@ var writeWorkbook = (auditData) => {
                                 var app = apps[id];
                                 var values = [id, app.name, app.scope, app.createdOn, app.tId, app.tName, app.aes === true];
                                 customAppsSheet.addRow(generateRowValues(instanceName, instance, values));
+
+                                if(app.aes === true)
+                                    overviewData.apps.totalCreated++;
                             }
                         }
 
@@ -456,7 +497,6 @@ var writeWorkbook = (auditData) => {
             workSheet.columns = generateColumns([
                 { header: 'Audit', width: 8 },
                 { header: 'Audit State', width: 12 },
-                { header: 'Error Definition', width: 15 },
                 { header: 'Error Description', width: 42 }
             ]);
             workSheet.autoFilter = { from: 'A1', to: 'J1' };
@@ -469,8 +509,24 @@ var writeWorkbook = (auditData) => {
 
                     if(Array.isArray(audit)){
                         audit.forEach((row) => {
-                            if(!row.success && instanceName != "Instance Name") {
-                                workSheet.addRow(generateRowValues(instanceName, instance,[auditName, row.auditState, row.errorDefinition, row.errorDescription]));
+
+                            if(!row.success && instanceName != "Instance Name" && instanceName != "u_instance_name") {
+                                workSheet.addRow(generateRowValues(instanceName, instance,[auditName, row.auditState, row.errorDescription]));
+                            }
+
+                            if(auditName == "settings"){
+                                if(!row.success){
+                                    switch(row.auditState){
+                                        case "Failed":
+                                            overviewData.instances.errors++;
+                                            break;
+                                        case "Excluded":
+                                            overviewData.instances.excluded++;
+                                            break;
+                                    }
+                                } else {
+                                    overviewData.instances.successful++;
+                                }
                             }
                         });
                     }
@@ -480,6 +536,39 @@ var writeWorkbook = (auditData) => {
             console.log("Parsed errors");
 
         })();
+
+        //
+        // Now populate the Overview worksheet
+        //
+        (function(sheet){
+            sheet.addRow(["Last updated:", moment(overviewData.lastUpdated()).format("MMMM Do YYYY, h:mm:ss a")]);
+            sheet.addRow([]);
+            sheet.addRow(["No. of Instances Audited Successfully:", overviewData.instances.successful]);
+            sheet.addRow(["No. of Instances Excluded:", overviewData.instances.excluded]);
+            sheet.addRow(["No. of Instances with Errors:", overviewData.instances.errors]);
+            sheet.addRow([]);
+            sheet.addRow(["Total customers audited successfully:", Object.keys(overviewData.totalCustomers).length]);
+            sheet.addRow([]);
+            sheet.addRow(["Total AES installs (instances):", overviewData.installs.instances]);
+            sheet.addRow(["Total AES installs (customers):", Object.keys(overviewData.installs.customers).length]);
+            sheet.addRow([]);
+            sheet.addRow(["Total # of AES apps created:", overviewData.apps.totalCreated]);
+            sheet.addRow(["Total # of AES apps in production:", overviewData.apps.totalInProduction]);
+
+            //
+            // Apply cell styling
+            //
+            sheet.getCell('B2').font = { bold: true };
+
+            for(var i = 1; i < 100;i++){
+                sheet.getCell('B' + i.toString()).alignment = { horizontal: 'right' };
+            }
+
+            [2,4,5,6,8,10,11,13,14].forEach((n) => {
+                sheet.getCell('B' + n.toString()).numFmt = '#,##0';
+            });
+
+        })(overviewSheet);
 
         wb.xlsx.writeFile(fileName).then(() => {
             console.log("Created file " + fileName);
