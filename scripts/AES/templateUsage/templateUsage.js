@@ -19,7 +19,7 @@ var getTemplateUsage = function() {
         var gr = new GlideRecord("sys_app_template_instance");
         if(gr.isValid()) {
             gr.setWorkflow(false);
-            gr.addEncodedQuery("state=complete^sys_updated_on>=javascript:gs.beginningOfLast30Days()");
+            gr.addEncodedQuery("state=complete");
             gr.query();
 
             while(gr.next()){

@@ -144,12 +144,14 @@ var getInstallationDetails = function() {
         licensedPlugin: false,
         licensedApp: false,
         buildName: gs.getProperty("glide.buildname"),
-        buildTag: gs.getProperty("glide.buildtag")
+        buildTag: gs.getProperty("glide.buildtag"),
+        version: ""
     };
 
     if(gr.next()) {
         installationDetails.installed = true;
         installationDetails.installedOn = gr.getValue("install_date");
+        installationDetails.version = gr.getValue("version")
     }
 
     try {

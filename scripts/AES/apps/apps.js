@@ -103,7 +103,7 @@ var getCustomApps = function() {
             gr.query();
 
             while(gr.next()){
-                var templateId = gr.getValue("template_instance"),
+                var templateId = gr.template_instance.template.toString(),
                     templateName = gr.template_instance.getDisplayValue(),
                     appSysId = gr.getValue("value");
 
