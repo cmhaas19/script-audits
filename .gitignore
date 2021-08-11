@@ -1,3 +1,7 @@
+# audits
+*.csv
+*.xlsx
+
 # Logs
 logs
 *.log

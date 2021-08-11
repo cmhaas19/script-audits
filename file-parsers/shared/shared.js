@@ -162,6 +162,7 @@ var loadFile = (instances) => {
 	return promise;
 };
 
+exports.parseCsvFile = parseCsvFile;
 exports.loadInstanceData = loadInstanceData;
 exports.loadAccountData = loadAccountData;
 exports.loadInstancesAndAccounts = loadInstancesAndAccounts;
