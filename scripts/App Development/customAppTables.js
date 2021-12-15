@@ -30,6 +30,7 @@ var getCustomTables = function() {
                 extendsTable: "", 
                 extensible: (gr.getValue("is_extendable") == true),
                 fieldTypes: {}, 
+                referenceTables: {},
                 fieldCount: 0
             };
 
@@ -69,6 +70,29 @@ var getCustomTables = function() {
             var table = tables[tableName];
             table.fieldTypes[fieldType] = fieldTypeCount;
             table.fieldCount += fieldTypeCount;
+        }
+    })();
+
+    //
+    // Reference field info from sys_dictionary
+    //
+    (function(){
+        var gr = new GlideAggregate("sys_dictionary");
+        gr.addAggregate("COUNT");
+        gr.groupBy("name");
+        gr.groupBy("reference");
+        gr.setWorkflow(false);
+        gr.addEncodedQuery("nameIN" + Object.keys(tables).join(",") + "^internal_type=reference");
+        gr.addQuery("element", "NOT LIKE", "sys_%");
+        gr.query();
+
+        while(gr.next()) {
+            var tableName = gr.name.toString(),
+                referenceTable = gr.reference.toString(),
+                referenceCount = parseInt(gr.getAggregate("COUNT"));
+
+            var table = tables[tableName];
+            table.referenceTables[referenceTable] = referenceCount;
         }
     })();
 

@@ -218,16 +218,57 @@ var getSystemPropertySettings = function() {
     return results;
 };
 
+var getAppIntakeUsage = function() {
+    var results = {
+        installed: false,
+        active: false,
+        requestCounts: 0
+    };
+
+    (function(){
+        var gr = new GlideRecord("sc_cat_item");
+        gr.setWorkflow(false);
+        
+        if(gr.get("ebbb2414c3013010b83971e54440dd57")){
+            results.installed = true;
+            results.active = (gr.getValue("active") == "1");
+        }
+    })();
+
+    (function(){
+        var gr = new GlideAggregate("sc_req_item");
+        gr.setWorkflow(false);
+        gr.addEncodedQuery("cat_item=ebbb2414c3013010b83971e54440dd57");
+        gr.addAggregate("COUNT");
+        gr.query()
+        
+        results.requestCounts = (gr.next() ? parseInt(gr.getAggregate("COUNT")) : 0);
+    })();
+
+    return results;
+};
+
+var getCurrentLanguage = function() {
+	var language = "N/A";
+	try {
+		language = gs.getSession().getLanguage();
+	} catch(e) {}
+
+	return language;
+};
+
 
 (function(){
 
     var results = {
+        currentLanguage: getCurrentLanguage(),
         installationDetails: getInstallationDetails(),
         applicationUsage: getApplicationUsage(),
         systemPropertySettings: getSystemPropertySettings(),
         pipelineCount: getPipelineCount(),
         guidedSetupStatus: getGuidedSetupStatus(),
-        deploymentRequests: getDeploymentRequests()
+        deploymentRequests: getDeploymentRequests(),
+        appIntakeUsage: getAppIntakeUsage()
     };
 
     gs.print(JSON.stringify(results));

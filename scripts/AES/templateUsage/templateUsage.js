@@ -1,65 +1,55 @@
 
-var CONSTANTS = {
-    AES_SCOPE: "sn_app_eng_studio"
-};
+var getTemplates = function(query) {
+    var data = {};
 
-var isAppEngineStudioInstalled = function() {    
-    var gr = new GlideRecord("sys_store_app");
+    var gr = new GlideAggregate("sys_app_template_instance");
+
+    if(!gr.isValid())
+        return data;
+
     gr.setWorkflow(false);
-    gr.addQuery("scope=" + CONSTANTS.AES_SCOPE);
+    gr.addEncodedQuery(query);
+    gr.groupBy("template");
+    gr.addTrend("sys_created_on", 'Month');
+    gr.addAggregate("COUNT");
+    gr.setGroup(false);
     gr.query();
 
-    return gr.next();
+    while(gr.next()){
+        var templateId = gr.template.toString();
+
+        if(data[templateId] == undefined)
+            data[templateId] = { templateName: gr.template.getDisplayValue(), months: {} };
+
+        data[templateId].months[gr.getValue("timeref")] = gr.getAggregate("COUNT");
+    }
+
+    return data;
+}
+
+var getObjectTemplateUsage = function() {
+    return getTemplates("app_template=false^state=complete");
 };
 
-var getTemplateUsage = function() {
-    var templateInstances = {};
+var getAppTemplateUsage = function() {
+    return getTemplates("app_template=true^state=complete");
+};
 
-    (function(data){
-        var gr = new GlideRecord("sys_app_template_instance");
-        if(gr.isValid()) {
-            gr.setWorkflow(false);
-            gr.addEncodedQuery("state=complete");
-            gr.query();
+var getCurrentLanguage = function() {
+	var language = "N/A";
+	try {
+		language = gs.getSession().getLanguage();
+	} catch(e) {}
 
-            while(gr.next()){
-                data[gr.getUniqueValue()] = {
-                    templateName: gr.template.getDisplayValue(),
-                    templateId: gr.getValue("template"),
-                    isApp: (gr.getValue("app_template") == "1"),
-                    createdOn: gr.getValue("sys_created_on"),
-                    updatedOn: gr.getValue("sys_updated_on")
-                };
-            }
-        };
-    })(templateInstances);
-
-    (function(data){
-        var gr = new GlideRecord("sys_app_template_output_var_instance");
-        if(gr.isValid()){
-            gr.setWorkflow(false);
-            gr.addEncodedQuery("template_instance.app_template=true^name=app_sys_id");
-            gr.query();
-
-            while(gr.next()){
-                var id = gr.getValue("template_instance");
-
-                if(data[id])
-                    data[id].appSysId = gr.getValue("value");
-            }
-        }
-        
-
-    })(templateInstances);
-
-    return templateInstances;
+	return language;
 };
 
 (function(){
 
     var results = {
-        installed: isAppEngineStudioInstalled(),
-        templateUsage: getTemplateUsage()
+        currentLanguage: getCurrentLanguage(),
+        appTemplates: getAppTemplateUsage(),
+        objectTemplates: getObjectTemplateUsage()
     };
 
     gs.print(JSON.stringify(results));

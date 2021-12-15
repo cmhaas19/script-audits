@@ -72,7 +72,7 @@ var getCustomApps = function() {
     var scopedApps = (function(){
         var gr = new GlideRecord("sys_app");
         gr.setWorkflow(false);
-        gr.setLimit(150);
+        gr.setLimit(5000);
         gr.addEncodedQuery("scopeSTARTSWITHx_" + getCompanyCode() + "^active=true");
         gr.orderByDesc("sys_created_on");
         gr.query();
@@ -83,7 +83,9 @@ var getCustomApps = function() {
             apps[gr.getUniqueValue()] = { 
                 name: gr.getValue("name"), 
                 scope: gr.scope.toString(),
-                createdOn: gr.getValue("sys_created_on")
+                logo: gr.getValue("logo"),
+                createdOn: gr.getValue("sys_created_on"),
+                sourceControl: false
             };
         }
 
@@ -129,13 +131,40 @@ var getCustomApps = function() {
         }
     }
 
+    //
+    // Get source control status
+    //
+    (function(){
+        var gr = new GlideRecord("sys_repo_config");
+        gr.setWorkflow(false);
+        gr.addJoinQuery("sys_app", "sys_app", "sys_id");
+        gr.query();
+
+        while(gr.next()){
+            var id = gr.getValue("sys_app");
+            if(scopedApps[id]) {
+                scopedApps[id].sourceControl = true;
+            }
+        }
+    })();
+
     return scopedApps;
+};
+
+var getCurrentLanguage = function() {
+	var language = "N/A";
+	try {
+		language = gs.getSession().getLanguage();
+	} catch(e) {}
+
+	return language;
 };
 
 (function() {
 
     var results = {
         companyCode: getCompanyCode(),
+        currentLanguage: getCurrentLanguage(),
         installationDetails: getInstallationDetails(),
         customStoreApps: getCustomStoreApps(),
         customApps: getCustomApps()
