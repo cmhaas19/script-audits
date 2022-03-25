@@ -1,6 +1,6 @@
 const ExcelJS = require('exceljs');
 const fastCsv = require("fast-csv");
-const fs = require('fs')
+const fs = require('fs');
 const moment = require('moment');
 const EMPTY_PAYLOAD = "Empty Payload";
 const AUDIT_STATE_COMPLETED = "Completed";
@@ -10,22 +10,35 @@ var FILE_DIRECTORY = "Customer";
 var loadInstanceData = () => {
 	var promise = new Promise((resolve, reject) => {
 
-		loadAccountData().then((accounts) => {
+		loadAllAccountData().then((accounts) => {
 			var instances = {};
 
 			fastCsv.parseFile("../shared/" + FILE_DIRECTORY + "-instances.csv")
 				.on("data", data => {
 					var instanceName = data[0],
-						accountNo = data[2];
+						accountNo = data[2],
+                        account = accounts[accountNo];
+
+                    if(account == undefined) {
+                        account = {
+                            accountName: data[1],
+                            accountNo: accountNo,
+                            primarySalesRep: "",
+                            solutionConsultant: "",
+                            city: "",
+                            country: "",
+                            totalACV: "",
+                            accountType: "Unknown",
+                            isAppEngineSubscriber: false
+                        };
+                    }
 
 					instances[instanceName] = {
-						customer: data[1],
-						accountNo: accountNo,
+                        account: account,
 						version: data[3],
 						purpose: data[4],
 						category: data[5],
-						subCategory: data[6],
-						isAppEngineSubscriber: !(accounts[accountNo] == undefined)
+						subCategory: data[6]
 					};
 				})
 				.on("end", () => {
@@ -38,20 +51,54 @@ var loadInstanceData = () => {
 	return promise;
 };
 
-var loadAccountData = () => {
-	var promise = new Promise((resolve, reject) => {
+var loadAllAccountData = () => {
+    var promise = new Promise((resolve, reject) => {
 		var accounts = {};
+
+		fastCsv.parseFile("../shared/all-customer-accounts.csv")
+			.on("data", data => {
+				var accountNo = data[0];
+
+				accounts[accountNo] = {
+					accountName: data[1],
+                    accountNo: accountNo,
+                    primarySalesRep: data[2],
+                    solutionConsultant: data[3],
+                    city: data[5],
+                    country: data[6],
+                    totalACV: data[10],
+                    accountType: data[11],
+                    isAppEngineSubscriber: false
+				};
+
+			})
+			.on("end", rowCount => {
+                loadAppEngineAccounts(accounts).then((a) => {
+                    console.log("Loaded " + Object.keys(a).length + " accounts.");
+                    resolve(a);
+                });
+			});
+	});
+
+	return promise;
+};
+
+var loadAppEngineAccounts = (accounts) => {
+	var promise = new Promise((resolve, reject) => {
+        var appEngineAccounts = 0;
 
 		fastCsv.parseFile("../shared/app-engine-accounts.csv")
 			.on("data", data => {
-				var accountNo = data[2];
+				var accountNo = data[2],
+                    account = accounts[accountNo];
 
-				accounts[accountNo] = {
-					accountName: data[1]
-				};
+                if(account) {
+                    account.isAppEngineSubscriber = true;
+                    appEngineAccounts++;
+                }
 			})
 			.on("end", rowCount => {
-				console.log("Loaded " + Object.keys(accounts).length + " accounts.");
+				console.log("Identified " + appEngineAccounts + " App Engine Accounts.");
 				resolve(accounts);
 			});
 	});
@@ -65,12 +112,31 @@ var parseCsvFile = (propertyName, auditData) => {
         auditData[propertyName] = [];
 
 	var parsePayload = function(payload) {
+        var response = {
+            success: false
+        };
+
 		if(payload && payload.length && payload != EMPTY_PAYLOAD) {
-			if(payload.startsWith("*** Script: ")) {
-				var jsonString = payload.substring(11);
-				try { return JSON.parse(jsonString); } catch(e) {  }
-			}
-		}
+            var index = payload.lastIndexOf("*** Script:");
+
+            if(index != -1) {
+                var jsonString = payload.substring(index + 12);
+
+                try { 
+                    response.data = JSON.parse(jsonString);
+                    response.success = true;
+                } catch(e) {  
+                    response.errorMessage = e.message;
+                }
+            } else {
+                response.errorMessage = EMPTY_PAYLOAD;
+            }
+            
+		} else {
+            response.errorMessage = EMPTY_PAYLOAD;
+        }
+
+        return response;
 	};
 
     var fileName = FILE_DIRECTORY + "/" + propertyName + ".csv";
@@ -81,9 +147,18 @@ var parseCsvFile = (propertyName, auditData) => {
 				instanceName: data[2],
 				auditState: data[0],
 				errorDescription: data[1],
-				success: (data[0] == AUDIT_STATE_COMPLETED),
-				data: parsePayload(data[3])
+				success: (data[0] == AUDIT_STATE_COMPLETED)
 			};
+
+            var response = parsePayload(data[3]);
+
+            if(response.success) {
+                row.data = response.data;
+                row.success = true;
+            } else {
+                row.success = false;
+                row.errorDescription = response.errorMessage;
+            }
 
             auditData[propertyName].push(row);
 
@@ -101,8 +176,11 @@ var loadAllFiles = (instances) => {
         parseCsvFile("settings", auditData)
             .then((auditData) => parseCsvFile("roles", auditData))
             .then((auditData) => parseCsvFile("templates", auditData))
-            .then((auditData) => parseCsvFile("apps", auditData))
+            .then((auditData) => parseCsvFile("customApps", auditData))
+            .then((auditData) => parseCsvFile("customAppsAggregates", auditData))
+            .then((auditData) => parseCsvFile("storeApps", auditData))
             .then((auditData) => parseCsvFile("artifacts", auditData))
+            .then((auditData) => parseCsvFile("templateApps", auditData))
             .then((auditData) => {
                 var combined = {};
 
@@ -115,6 +193,7 @@ var loadAllFiles = (instances) => {
     
                         if(combined[instanceName] == undefined)
                             combined[instanceName] = {};
+
                         if(combined[instanceName][propertyName] == undefined)
                             combined[instanceName][propertyName] = [];
                         
@@ -129,9 +208,10 @@ var loadAllFiles = (instances) => {
                     var instance = combined[instanceName];
 
                     if(instances[instanceName]){
-                        instance.accountInfo = instances[instanceName];
+                        instance.instanceInfo = instances[instanceName];
                     }
                 }
+
                 //console.log(combined);
 
                 resolve(combined);
@@ -141,22 +221,100 @@ var loadAllFiles = (instances) => {
 	return promise;
 };
 
+var aggregateCustomApps = (auditData) => {
+    var combinedApps = {};
+
+    for(var instanceName in auditData){
+        var instance = auditData[instanceName];
+        var instanceInfo = instance.instanceInfo;
+        var isProduction = false;
+
+        if(instanceInfo && instanceInfo.purpose)
+            isProduction = (instanceInfo.purpose == "Production");
+
+        if(instance.customApps) {
+            instance.customApps.forEach((row) => {
+                if(row.data && row.data.customApps) {
+                    row.data.customApps.forEach((id) => {
+                        if(combinedApps[id] == undefined) {
+                            combinedApps[id] = {
+                                instanceInfo: instanceInfo,
+                                isProduction: isProduction
+                            };
+                        }
+
+                        if(!combinedApps[id].isProduction)
+                            combinedApps[id].isProduction = isProduction;
+                    });
+                }
+            });
+        }
+
+        if(instance.storeApps) {
+            instance.storeApps.forEach((row) => {
+                if(row.data && row.data.storeApps) {
+                    for(var id in row.data.storeApps) {
+                        var app = row.data.storeApps[id];
+
+                        if(combinedApps[id] == undefined) {
+                            combinedApps[id] = {
+                                instanceInfo: instanceInfo
+                            };
+                        } 
+
+                        combinedApps[id].installedOn = app;
+
+                        if(!combinedApps[id].isProduction)
+                            combinedApps[id].isProduction = isProduction;
+                    }
+                }
+            });
+        }
+
+        if(instance.templateApps) {
+            instance.templateApps.forEach((row) => {
+                if(row.data && row.data.aesApps) {
+                    for(var id in row.data.aesApps) {
+                        var app = row.data.aesApps[id];
+
+                        if(combinedApps[id] == undefined) {
+                            combinedApps[id] = {
+                                instanceInfo: instanceInfo,
+                                isProduction: false
+                            };
+                        }
+
+                        combinedApps[id].templateId = app;
+                    }
+                }
+            });
+        }
+    }
+
+    return combinedApps;
+
+};
+
 /*
     Write the workbook based on 
-    hbstemp: {
+    acxiom: {
         settings: [ [Object] ],
         roles: [ [Object] ],
         templates: [ [Object] ],
-        apps: [ [Object] ],
+        customApps: [ [Object] ],
+        customAppsAggregates: [ [Object] ],
+        storeApps: [ [Object] ],
         artifacts: [ [Object] ],
-        accountInfo: {
-            customer: 'The President And Fellows Of Harvard College',
-            accountNo: 'ACCT0025317',
-            version: 'glide-orlando-12-11-2019__patch9b-02-04-2021_02-05-2021_2157.zip',
-            purpose: 'Subproduction',
-            category: 'Customer',
-            subCategory: 'Customer / Prospect',
-            isAppEngineSubscriber: false
+        instanceInfo: {
+            account: {
+                accountName: 'Acxiom Corp',
+                accountNo: 'ACCT0001182',
+                isAppEngineSubscriber: true
+            },            
+            version: 'glide-rome-06-23-2021__patch2-09-23-2021_10-06-2021_1453.zip',
+            purpose: 'Production',
+            category: '',
+            subCategory: ''            
         }
     }
 */
@@ -170,8 +328,11 @@ var writeWorkbook = (auditData) => {
             var columns = [
                 { header: 'Instance Name', width: 22 },
                 { header: 'Company', width: 42 },
-                { header: 'Account No.', width: 13 },
-                { header: 'App Engine Subscriber', width: 20 },
+                { header: 'Account No.', width: 12 },
+                { header: 'Account Type', width: 17 },
+                { header: 'Primary Rep', width: 22 },
+                { header: 'Solution Consultant', width: 23 },
+                { header: 'App Engine Subscriber', width: 22 },
                 { header: 'Instance Version', width: 63 },
                 { header: 'Instance Purpose', width: 16 },
             ];
@@ -182,10 +343,14 @@ var writeWorkbook = (auditData) => {
         var generateRowValues = (instanceName, instance, values) => {
             var rowValues = [];
 
-            if(instance.accountInfo)
-                rowValues = [instanceName, instance.accountInfo.customer, instance.accountInfo.accountNo, instance.accountInfo.isAppEngineSubscriber, instance.accountInfo.version, instance.accountInfo.purpose];
-            else
-                rowValues = [instanceName,"","","","",""];
+            if(instance.instanceInfo && instance.instanceInfo.account) {
+                var account = instance.instanceInfo.account;
+                rowValues = [instanceName, account.accountName, account.accountNo, account.accountType, account.primarySalesRep, account.solutionConsultant, account.isAppEngineSubscriber, instance.instanceInfo.version, instance.instanceInfo.purpose];
+            }                
+            else {
+                rowValues = [instanceName,"","","","","","","",""];
+            }
+                
 
             return rowValues.concat(values);
         };
@@ -273,36 +438,37 @@ var writeWorkbook = (auditData) => {
                 { header: 'AES Installed On', width: 17 },
                 { header: 'AES Installed On YYYY-MM', width: 12 },
                 { header: 'AES Version', width: 17 },
-                { header: 'No. of Pipelines', width: 15 },
                 { header: 'Guided Setup Status', width: 19 },
                 { header: 'Guided Setup Progress', width: 20 },
-                { header: 'No. of Completed Deployment Requests', width: 34 },
                 { header: 'App Intake Installed?', width: 20 },
                 { header: 'App Intake Active?', width: 20 },
                 { header: 'No. of App Intake Requests', width: 20 }
             ]);
-            generalSheet.autoFilter = { from: 'A1', to: 'R1' };
+            generalSheet.autoFilter = { from: 'A1', to: 'S1' };
 
             customerSheet.columns = [
                 { header: 'Customer', width: 20 },
                 { header: 'Account No.', width: 20 },
+                { header: 'Account Type', width: 20 },
+                { header: 'Primary Rep', width: 20 },
+                { header: 'Solution Consultant', width: 20 },
                 { header: 'AES Installed On', width: 17 },
                 { header: 'AES Installed On YYYY-MM', width: 12 }
             ];
-            customerSheet.autoFilter = { from: 'A1', to: 'D1' };
+            customerSheet.autoFilter = { from: 'A1', to: 'G1' };
 
             usageSheet.columns = generateColumns([
                 { header: 'Application', width: 14 },
                 { header: 'Month', width: 8 },
                 { header: 'No. of Users', width: 12 }
             ]);
-            usageSheet.autoFilter = { from: 'A1', to: 'I1' };
+            usageSheet.autoFilter = { from: 'A1', to: 'L1' };
 
             propertiesSheet.columns = generateColumns([
                 { header: 'Property Name', width: 46 },
                 { header: 'Property Value', width: 27 }
             ]);
-            propertiesSheet.autoFilter = { from: 'A1', to: 'H1' };
+            propertiesSheet.autoFilter = { from: 'A1', to: 'K1' };
 
             for(var instanceName in auditData){
                 var instance = auditData[instanceName];
@@ -313,8 +479,7 @@ var writeWorkbook = (auditData) => {
                         // General
                         //
                         if(row.data) {
-                            var values = [];
-                            var deploymentCount = 0;			
+                            var values = [];		
                             var details = row.data.installationDetails;
                             var installedFormated = "";
 
@@ -322,35 +487,29 @@ var writeWorkbook = (auditData) => {
                                 installedFormated = moment(details.installedOn).format("YYYY-MM");
                             }
                             
-                            values.push(details.licensed, details.installed, details.installedOn, installedFormated, details.version, row.data.pipelineCount);
+                            values.push(details.licensed, details.installed, details.installedOn, installedFormated, details.version);
         
                             if(row.data.guidedSetupStatus && row.data.guidedSetupStatus.status){
                                 values.push(row.data.guidedSetupStatus.status, parseInt(row.data.guidedSetupStatus.progress));
                             } else{
                                 values.push("","");
                             }
-        
-                            if(row.data.deploymentRequests){
-                                deploymentCount = Object.keys(row.data.deploymentRequests).length;
-                            }
 
-                            if(details.installed && instance.accountInfo){
+                            if(details.installed && instance.instanceInfo && instance.instanceInfo.account){
                                 overviewData.installs.instances++;
-                                overviewData.installs.customers[instance.accountInfo.customer] = true;
+                                overviewData.installs.customers[instance.instanceInfo.account.accountName] = true;
 
                                 //
                                 // Track the minimum install date by customer
                                 //
-                                if(customers[instance.accountInfo.customer] == undefined)
-                                    customers[instance.accountInfo.customer] = { installedOn: details.installedOn, accountNo: instance.accountInfo.accountNo };
+                                if(customers[instance.instanceInfo.account.accountNo] == undefined)
+                                    customers[instance.instanceInfo.account.accountNo] = { installedOn: details.installedOn, account: instance.instanceInfo.account };
 
-                                if(moment(details.installedOn).isBefore(customers[instance.accountInfo.customer].installedOn)){
-                                    customers[instance.accountInfo.customer].installedOn = details.installedOn;
+                                if(moment(details.installedOn).isBefore(customers[instance.instanceInfo.account.accountNo].installedOn)){
+                                    customers[instance.instanceInfo.account.accountNo].installedOn = details.installedOn;
                                 }
 
-                            }   
-        
-                            values.push(deploymentCount);
+                            }
 
                             //
                             // App Intake
@@ -387,23 +546,127 @@ var writeWorkbook = (auditData) => {
                         }
                     });
 
-                    if(instance.accountInfo && instance.accountInfo.customer)
-                        overviewData.totalCustomers[instance.accountInfo.customer] = true;
+                    if(instance.instanceInfo && instance.instanceInfo.account)
+                        overviewData.totalCustomers[instance.instanceInfo.account.accountName] = true;
                 }
             }
 
             //
             // Customer worksheet
             //
-            for(var name in customers) {
-                var customer = customers[name];
-                customerSheet.addRow([name, customer.accountNo, customer.installedOn, moment(customer.installedOn).format("YYYY-MM")]);
+            for(var accountNo in customers) {
+                var customer = customers[accountNo];
+                customerSheet.addRow([
+                    customer.account.accountName, 
+                    customer.account.accountNo, 
+                    customer.account.accountType, 
+                    customer.account.primarySalesRep, 
+                    customer.account.solutionConsultant, 
+                    customer.installedOn, 
+                    moment(customer.installedOn).format("YYYY-MM")]);
             }
 
             console.log("Parsed settings");
 
         })();
-        
+
+
+        //
+        // Custom Apps
+        //
+        (function(){
+            var customAppsSheet = wb.addWorksheet('Custom Apps');
+
+            customAppsSheet.columns = [
+                { header: 'Company', width: 42 },
+                { header: 'Account No.', width: 12 },
+                { header: 'Account Type', width: 17 },
+                { header: 'Primary Rep', width: 22 },
+                { header: 'Solution Consultant', width: 23 },
+                { header: 'App Engine Subscriber', width: 22 },
+                { header: 'Is Production App', width: 33 },
+                { header: 'App SysID', width: 33 },
+                { header: 'Template ID', width: 32 },
+                { header: 'Template Name', width: 25 },
+                { header: 'Store App - Installed On', width: 21 },
+                { header: 'Store App - Installed On YYYY-MM', width: 28 },
+            ];
+            customAppsSheet.autoFilter = { from: 'A1', to: 'L1' };
+
+            var allCustomApps = aggregateCustomApps(auditData);
+
+            for(var id in allCustomApps) {
+                var app = allCustomApps[id];
+                var formattedDate = "";
+
+                if(app.instanceInfo == undefined){
+                    console.log("Could not find customer info for " + id);
+                    continue;
+                }
+                    
+                if(app.installedOn && app.installedOn.length) {
+                    formattedDate = moment(app.installedOn, 'YYYY-MM-DD').format("YYYY-MM");
+                }       
+
+                customAppsSheet.addRow([
+                    app.instanceInfo.account.accountName,
+                    app.instanceInfo.account.accountNo,
+                    app.instanceInfo.account.accountType,
+                    app.instanceInfo.account.primarySalesRep,
+                    app.instanceInfo.account.solutionConsultant,
+                    app.instanceInfo.account.isAppEngineSubscriber,
+                    app.isProduction,
+                    id,
+                    app.templateId,
+                    TEMPLATE_NAMES[app.templateId],
+                    app.installedOn,
+                    (formattedDate == "Invalid date" ? "" : formattedDate)
+                ]); 
+
+                if(app.templateId && app.templateId.length) {
+                    overviewData.apps.totalCreated++;
+
+                    if(app.isProduction == true) {
+                        overviewData.apps.totalInProduction++;
+                    }
+                }
+            }
+
+        })();
+
+        //
+        // Custom App Aggregates
+        //
+        (function(){
+            var sheet = wb.addWorksheet('Custom App Aggregates');
+
+            sheet.columns = generateColumns([
+                { header: 'Month', width: 10 },
+                { header: '# of Apps', width: 12 }
+            ]);
+            sheet.autoFilter = { from: 'A1', to: 'K1' };
+
+            for(var instanceName in auditData){
+                var instance = auditData[instanceName];
+
+                if(instance.customAppsAggregates) {
+                    instance.customAppsAggregates.forEach(row => {
+                        if(row.data && row.data.appsByCreatedDate) {
+                            var months = row.data.appsByCreatedDate;
+    
+                            for(var month in months) {
+                                var apps = months[month];
+
+                                sheet.addRow(generateRowValues(instanceName, instance, [
+                                    moment(month, 'MM/YYYY').format("YYYY-MM"),
+                                    apps
+                                ]));
+                            }
+                        }
+                    });
+                }
+            }
+        })();
 
         //
         // Templates Worksheet
@@ -419,7 +682,7 @@ var writeWorkbook = (auditData) => {
 				{ header: 'Month', width: 17 },
 				{ header: 'Count', width: 11, alignment: { horizontal: 'right' } }
 			]);
-            workSheet.autoFilter = { from: 'A1', to: 'J1' };
+            workSheet.autoFilter = { from: 'A1', to: 'N1' };
 
             for(var instanceName in auditData){
                 var instance = auditData[instanceName];
@@ -464,138 +727,6 @@ var writeWorkbook = (auditData) => {
         })();
 
         //
-        // Apps Worksheet
-        //
-        (function(){
-            var customAppsSheet = wb.addWorksheet('Custom Apps');
-            var storeAppsSheet = wb.addWorksheet('Store Apps');
-            var aesAppsSheet = wb.addWorksheet('AES Apps');
-            var customAESApps = {};
-
-            customAppsSheet.columns = generateColumns([
-                { header: 'App SysID', width: 33 },
-                { header: 'App Name', width: 50 },
-                { header: 'Scope', width: 20 },
-                { header: 'Created', width: 17 },
-                { header: 'Template ID', width: 32 },
-                { header: 'Template Name', width: 24 },
-                { header: 'Is AES App', width: 11 },
-                { header: 'Has Logo', width: 11 },
-                { header: 'Linked to Source Control', width: 28 }
-            ]);
-            customAppsSheet.autoFilter = { from: 'A1', to: 'N1' };
-
-            storeAppsSheet.columns = generateColumns([
-                { header: 'App SysID', width: 33 },
-                { header: 'App Name', width: 50 },
-                { header: 'Scope', width: 20 },
-                { header: 'Installed On', width: 17 },
-                { header: 'Is AES App', width: 11 }
-            ]);
-            storeAppsSheet.autoFilter = { from: 'A1', to: 'K1' };
-
-            aesAppsSheet.columns = [
-                { header: 'Customer', width: 20 },
-                { header: 'Account No.', width: 20 },
-                { header: 'App Name', width: 50 },
-                { header: 'App SysID', width: 33 },                
-                { header: 'Scope', width: 20 },
-                { header: 'Created', width: 18 },
-                { header: 'Created YYYY-MM', width: 15 },
-                { header: 'Template ID', width: 32 },
-                { header: 'Template Name', width: 24 },
-                { header: 'Is Production', width: 24 },
-                { header: 'Production Install', width: 24 },
-                { header: 'Production Install YYYY-MM', width: 24 },
-            ];
-            aesAppsSheet.autoFilter = { from: 'A1', to: 'L1' };
-
-            //
-            // Custom apps first
-            //
-            for(var instanceName in auditData){
-                var instance = auditData[instanceName];
-
-                if(instance.apps) {
-                    instance.apps.forEach(row => {
-                        if(row.data && row.data.customApps) {
-                            var apps = row.data.customApps;
-
-                            for(var id in apps) {
-                                var app = apps[id];
-                                var templateName = TEMPLATE_NAMES[app.tId];
-                                var hasLogo = (app.logo != null && app.logo.length > 0);
-                                var values = [id, app.name, app.scope, app.createdOn, app.tId, templateName, app.aes === true, hasLogo, app.sourceControl];
-                                customAppsSheet.addRow(generateRowValues(instanceName, instance, values));                                
-
-                                if(app.aes === true) {
-                                    overviewData.apps.current++;
-                                    customAESApps[id] = {
-                                        accountInfo: instance.accountInfo,
-                                        appInfo: app
-                                    };
-                                }                                    
-                            }
-                        }
-                    });
-                }
-            }
-
-            //
-            // Now do it for store apps
-            //
-            for(var instanceName in auditData){
-                var instance = auditData[instanceName];
-
-                if(instance.apps) {
-                    instance.apps.forEach(row => {
-                        if(row.data && row.data.customStoreApps) {
-                            var apps = row.data.customStoreApps;
-
-                            for(var id in apps) {
-                                var app = apps[id];
-                                var isAESApp = !(customAESApps[id] == undefined);
-                                var values = [id, app.name, app.scope, app.installedOn, isAESApp];
-                                storeAppsSheet.addRow(generateRowValues(instanceName, instance, values));
-
-                                if(isAESApp && instance.accountInfo.purpose == "Production") {
-                                    overviewData.apps.totalInProduction++;
-                                    customAESApps[id].production = app.installedOn;
-                                }                                    
-                            }
-                        }
-                    });
-                }
-            }
-
-            //
-            // AES Apps
-            //
-            for(var id in customAESApps) {
-                var app = customAESApps[id];
-                var templateName = TEMPLATE_NAMES[app.appInfo.tId];
-
-                aesAppsSheet.addRow([
-                    app.accountInfo.customer,
-                    app.accountInfo.accountNo,
-                    app.appInfo.name,
-                    id,
-                    app.appInfo.scope,
-                    app.appInfo.createdOn,
-                    moment(app.appInfo.createdOn).format("YYYY-MM"),
-                    app.appInfo.tId,
-                    templateName,
-                    (app.production == undefined ? false : true),
-                    (app.production == undefined ? "" : app.production),
-                    (app.production == undefined ? "" : moment(app.production).format("YYYY-MM"))
-                ]);
-            }
-
-            console.log("Parsed apps");
-
-        })();
-
-        //
         // Artifacts Worksheet
         //
         (function(){
@@ -606,7 +737,7 @@ var writeWorkbook = (auditData) => {
 				{ header: 'No. of artifacts across all apps', width: 26 },
 				{ header: 'No. of apps w/ artifact', width: 20 }
 			]);
-            workSheet.autoFilter = { from: 'A1', to: 'I1' };
+            workSheet.autoFilter = { from: 'A1', to: 'L1' };
 
             for(var instanceName in auditData){
                 var instance = auditData[instanceName];
@@ -641,7 +772,7 @@ var writeWorkbook = (auditData) => {
 				{ header: 'Delegated Dev - Logged in <= 30 days', width: 31 },
 				{ header: 'Delegated Dev - Logged in <= 90 days', width: 31 },
 			]);
-            workSheet.autoFilter = { from: 'A1', to: 'L1' };
+            workSheet.autoFilter = { from: 'A1', to: 'O1' };
 
             for(var instanceName in auditData){
                 var instance = auditData[instanceName];
@@ -674,7 +805,7 @@ var writeWorkbook = (auditData) => {
                 { header: 'Audit State', width: 12 },
                 { header: 'Error Description', width: 42 }
             ]);
-            workSheet.autoFilter = { from: 'A1', to: 'J1' };
+            workSheet.autoFilter = { from: 'A1', to: 'L1' };
 
             for(var instanceName in auditData){
                 var instance = auditData[instanceName];
@@ -727,8 +858,7 @@ var writeWorkbook = (auditData) => {
             sheet.addRow(["Total AES installs (instances):", overviewData.installs.instances]);
             sheet.addRow(["Total AES installs (customers):", Object.keys(overviewData.installs.customers).length]);
             sheet.addRow([]);
-            sheet.addRow(["Total # of AES apps (created):", overviewData.apps.totalCreated]);
-            sheet.addRow(["Total # of AES apps (current):", overviewData.apps.current]);
+            sheet.addRow(["Total # of AES apps created:", overviewData.apps.totalCreated]);
             sheet.addRow(["Total # of AES apps in production:", overviewData.apps.totalInProduction]);
 
             //

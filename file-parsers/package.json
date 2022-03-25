@@ -4,6 +4,7 @@
   "dependencies": {
     "csv-write-stream": "^2.0.0",
     "exceljs": "^4.2.1",
+    "extract-json-string": "^1.0.1",
     "fast-csv": "^4.3.6",
     "lodash": "^4.17.20",
     "moment": "^2.29.1",

@@ -93,8 +93,8 @@ var process = () => {
             generalWs.columns = generateColumns([
                 { header: 'Workspace ID', width: 20 },
                 { header: 'Name', width: 20 },
-                { header: 'Description', width: 20 },
                 { header: 'Created On', width: 20 },
+                { header: 'Created On - YYYY-MM', width: 20 },
                 { header: 'Navigation Type', width: 30 },
                 { header: 'Notifications Enabled', width: 20 },
                 { header: 'Search Enabled', width: 15 },
@@ -102,33 +102,33 @@ var process = () => {
                 { header: 'Workspace Url', width: 15 },
                 { header: 'Brand Color', width: 15 },
                 { header: 'Primary Color', width: 15 },
+                { header: 'Has Logo', width: 15 },
+                { header: 'Scope', width: 15 },
                 { header: 'Is Custom', width: 15 }
             ]);
 
             moduleWs.columns = generateColumns([
                 { header: 'Workspace ID', width: 20 },
                 { header: 'Workspace Name', width: 20 },
-                { header: 'Module Sys ID', width: 20 },
                 { header: 'Module ID', width: 20 },
                 { header: 'Label', width: 20 },
-                { header: 'Order', width: 20 },
-                { header: 'Icon', width: 20 },
-                { header: 'Type', width: 30 }
+                { header: 'Icon', width: 20 }
             ]);
 
             listWs.columns = generateColumns([
                 { header: 'Workspace ID', width: 20 },
                 { header: 'Workspace Name', width: 20 },
-                { header: 'List ID', width: 20 },
+                { header: 'Workspace Scope', width: 20 },
                 { header: 'Table', width: 20 },
                 { header: 'Title', width: 20 },
                 { header: 'Category', width: 20 },
-                { header: 'Active', width: 30 }
+                { header: 'Is Custom Table', width: 20 },
+                { header: 'Is Same Scope', width: 20 }
             ]);
             
             auditData.forEach((row) => {
 
-                if(row.instance && row.instance.purpose == "Production" && row.data) {
+                if(row.data) {
 
                     for(var workspaceId in row.data) {
                         var workspace = row.data[workspaceId];
@@ -138,50 +138,57 @@ var process = () => {
 
                         generalWs.addRow(
                             generateRowValues(row.instanceName, row.instance, [
-                                workspace.id,
+                                workspaceId,
                                 workspace.name,
-                                workspace.description,
                                 workspace.createdOn,
+                                moment(workspace.createdOn).format("YYYY-MM"),
                                 workspace.navigationType,
-                                workspace.notificationsEnabled,
-                                workspace.searchEnabled,
-                                workspace.userPreferencesEnabled,
-                                workspace.workspaceUrl,
-                                workspace.brandColor,
+                                workspace.notifications,
+                                workspace.search,
+                                workspace.userPrefs,
+                                workspace.url,
+                                workspace.color,
                                 workspace.primaryColor,
+                                (workspace.logo && workspace.logo.length > 0 ? true : false),
+                                workspace.scope,
                                 isCustomWorkspace(workspaceId)])).commit();
 
-                        if(workspace.modules) {
-                            for(var moduleId in workspace.modules) {
-                                var module = workspace.modules[moduleId];
-
+                        if(workspace.modules && workspace.modules.length) {
+                            workspace.modules.forEach((module) => {
                                 moduleWs.addRow(
                                     generateRowValues(row.instanceName, row.instance, [
-                                        workspace.id,
+                                        workspaceId,
                                         workspace.name,
-                                        moduleId,
+                                        workspace.scope,
                                         module.id,
                                         module.label,
-                                        module.order,
-                                        module.icon,
-                                        module.type,])).commit();
-                            }
+                                        module.icon])).commit();
+                            }); 
                         }
 
-                        if(workspace.lists) {
-                            for(var listsId in workspace.lists) {
-                                var list = workspace.lists[listsId];
+                        if(workspace.lists && workspace.lists.length) {
+                            workspace.lists.forEach((list) => {
+                                var isCustomTable = false;
+                                var isSameScope = false;
+
+                                if(list.table != null && list.table != undefined) {
+                                    if(list.table.startsWith("x_") || list.table.startsWith("u_"))
+                                        isCustomTable = true;
+
+                                    isSameScope = checkIfScopesMatch(workspace.scope, list.table);
+                                }
 
                                 listWs.addRow(
                                     generateRowValues(row.instanceName, row.instance, [
-                                        workspace.id,
+                                        workspaceId,
                                         workspace.name,
-                                        listsId,
+                                        workspace.scope,
                                         list.table,
                                         list.title,
                                         list.category,
-                                        list.active])).commit();
-                            }
+                                        isCustomTable,
+                                        isSameScope])).commit();
+                            });
                         }
                     }
                 }
@@ -198,6 +205,41 @@ var process = () => {
     });
 
     return promise;
+};
+
+var checkIfScopesMatch = (scope, tableName) => {
+    var scopeA = getScopePrefix(scope),
+        scopeB = getScopePrefix(tableName);
+
+    var match = false;
+
+    if(scopeA.length > 0 && scopeB.length > 0)
+        match = (scopeA == scopeB);
+
+    if(!match && scope.toLowerCase() == "global" && tableName.startsWith("u_"))
+        match = true;
+
+    return match;
+};
+
+var getScopePrefix = (s) => {
+    var scopePrefix = "";
+
+    if(s == null || s == undefined)
+        return scopePrefix;
+
+    if(!s.startsWith("x_"))
+        return scopePrefix;
+
+    var parts = s.split("_");
+
+    if(parts.length >= 2) {
+        scopePrefix = parts[0] + "_" + parts[1];
+    }
+
+    //console.log(scopePrefix);
+
+    return scopePrefix;
 };
 
 
