@@ -41,7 +41,7 @@ var getGuidedSetupStatus = function() {
 	})();
 
 	//
-	// Get the main ecord
+	// Get the main record
 	//
 	(function(){
 		var gr = new GlideRecord("gsw_content_group");
@@ -112,7 +112,7 @@ var getApplicationUsage = function() {
         return appUsage;
 
     gr.setWorkflow(false);	
-    gr.addEncodedQuery("app_name=App Engine Studio^ORapp_name=Studio^ORapp_name=Table Builder");
+    gr.addEncodedQuery("app_name=App Engine Studio^ORapp_name=Studio^ORapp_name=Table Builder^ORapp_name=App Engine Management Center");
     gr.addAggregate("COUNT");
     gr.groupBy("app_name");
     gr.groupBy("time_stamp");
@@ -143,8 +143,6 @@ var getInstallationDetails = function() {
         licensed: false,
         licensedPlugin: false,
         licensedApp: false,
-        buildName: gs.getProperty("glide.buildname"),
-        buildTag: gs.getProperty("glide.buildtag"),
         version: ""
     };
 
@@ -167,45 +165,10 @@ var getInstallationDetails = function() {
     return installationDetails;
 };
 
-var getDeploymentRequests = function() {
-    var data = {};
-
-    var gr = new GlideRecord("sn_app_eng_studio_deployment_request");
-    if(!gr.isValid())
-        return data;
-
-    gr.setWorkflow(false);
-    gr.addEncodedQuery("state=3^app_sys_id!=NULL");
-    gr.query();
-
-    while(gr.next()){
-        data[gr.getUniqueValue()] = {
-            action: gr.getValue("action"),
-            createdOn: gr.getValue("sys_created_on"),
-            appSysId: gr.getValue("app_sys_id")
-        };
-    }
-
-    return data;
-};
-
-var getPipelineCount = function() {
-    var gr = new GlideAggregate("sn_app_eng_studio_pipeline");
-
-    if(!gr.isValid())
-        return 0;
-
-    gr.setWorkflow(false);
-    gr.addEncodedQuery("active=true");
-    gr.addAggregate("COUNT");
-    gr.query();
-
-    return (gr.next() ? parseInt(gr.getAggregate("COUNT")) : 0);
-};
-
 var getSystemPropertySettings = function() {
     var gr = new GlideRecord("sys_properties");
     gr.setWorkflow(false);
+    gr.setLimit(30);
     gr.addEncodedQuery("sys_scope.name=App Engine Studio");
     gr.query();
 
@@ -214,36 +177,6 @@ var getSystemPropertySettings = function() {
     while(gr.next()){
         results[gr.getValue("name")] = gr.getValue("value");
     }
-
-    return results;
-};
-
-var getAppIntakeUsage = function() {
-    var results = {
-        installed: false,
-        active: false,
-        requestCounts: 0
-    };
-
-    (function(){
-        var gr = new GlideRecord("sc_cat_item");
-        gr.setWorkflow(false);
-        
-        if(gr.get("ebbb2414c3013010b83971e54440dd57")){
-            results.installed = true;
-            results.active = (gr.getValue("active") == "1");
-        }
-    })();
-
-    (function(){
-        var gr = new GlideAggregate("sc_req_item");
-        gr.setWorkflow(false);
-        gr.addEncodedQuery("cat_item=ebbb2414c3013010b83971e54440dd57");
-        gr.addAggregate("COUNT");
-        gr.query()
-        
-        results.requestCounts = (gr.next() ? parseInt(gr.getAggregate("COUNT")) : 0);
-    })();
 
     return results;
 };
@@ -265,10 +198,7 @@ var getCurrentLanguage = function() {
         installationDetails: getInstallationDetails(),
         applicationUsage: getApplicationUsage(),
         systemPropertySettings: getSystemPropertySettings(),
-        pipelineCount: getPipelineCount(),
-        guidedSetupStatus: getGuidedSetupStatus(),
-        deploymentRequests: getDeploymentRequests(),
-        appIntakeUsage: getAppIntakeUsage()
+        guidedSetupStatus: getGuidedSetupStatus()
     };
 
     gs.print(JSON.stringify(results));
