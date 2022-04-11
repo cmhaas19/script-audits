@@ -31,8 +31,12 @@ var EXCLUDED_PORTALS = {
 var generateColumns = (values) => {
     var columns = [
         { header: 'Instance Name', width: 22 },
-        { header: 'Company', width: 16 },
-        { header: 'Account No.', width: 13 },
+        { header: 'Company', width: 42 },
+        { header: 'Account No.', width: 12 },
+        { header: 'Account Type', width: 17 },
+        { header: 'Primary Rep', width: 22 },
+        { header: 'Solution Consultant', width: 23 },
+        { header: 'App Engine Subscriber', width: 22 },
         { header: 'Instance Version', width: 22 },
         { header: 'Instance Purpose', width: 16 },
     ];
@@ -42,14 +46,31 @@ var generateColumns = (values) => {
 
 var generateRowValues = (instanceName, instance, values) => {
     var rowValues = [];
+    //console.log(instance);
 
-    if(instance)
-        rowValues = [instanceName, instance.customer, instance.accountNo, instance.version, instance.purpose];
-    else
-        rowValues = [instanceName,"","","",""];
+    if(instance && instance.account) {
+        var account = instance.account;
+        rowValues = [instanceName, account.accountName, account.accountNo, account.accountType, account.primarySalesRep, account.solutionConsultant, account.isAppEngineSubscriber, instance.version, instance.purpose];
+    }                
+    else {
+        rowValues = [instanceName,"","","","","","","",""];
+    }        
 
     return rowValues.concat(values);
 };
+
+/*
+var generateRowValues = (instanceName, instance, values) => {
+    var rowValues = [];
+
+    if(instance)
+        rowValues = [instanceName, instance.customer, instance.accountNo, instance.isAppEngineSubscriber, instance.version, instance.purpose];
+    else
+        rowValues = [instanceName,"","","","",""];
+
+    return rowValues.concat(values);
+};
+*/
 
 /*
 {
@@ -328,7 +349,7 @@ var processPortals = () => {
 
 (function(){
 
-    //processTemplateScopes().then(processNowExperiences);
-    processPortals();
+    processTemplateScopes().then(processNowExperiences);
+    //processPortals();
 
 })();

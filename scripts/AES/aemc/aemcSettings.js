@@ -8,13 +8,29 @@ var CONSTANTS = {
 };
 
 var getCompanyCode = function(){
-    var companyCode = gs.getProperty("glide.appcreator.company.code");
+    return getPropertyValue("glide.appcreator.company.code");
+};
 
-	if(companyCode == undefined || companyCode == null || companyCode.length == 0)
+var getPropertyValue = function(name){
+    var value = gs.getProperty(name);
+
+	if(value == undefined || value == null || value.length == 0)
 		return "";
 
-    return companyCode;
+    return value;
 };
+
+var getPolarisSettings = function() {
+    return {
+        "glide.ui.polaris.menus": getPropertyValue("glide.ui.polaris.menus"),
+        "glide.ui.polaris.login.show_illustrations": getPropertyValue("glide.ui.polaris.login.show_illustrations"),
+        "glide.ui.polaris.list_style.enable_highlighted_value_style": getPropertyValue("glide.ui.polaris.list_style.enable_highlighted_value_style"),
+        "glide.ui.polaris.global_search": getPropertyValue("glide.ui.polaris.global_search"),
+        "glide.ui.polaris.experience": getPropertyValue("glide.ui.polaris.experience"),
+        "glide.ui.polaris.dark_themes_enabled": getPropertyValue("glide.ui.polaris.dark_themes_enabled")
+    };
+};
+
 
 var getCurrentLanguage = function() {
 	var language = "N/A";
@@ -151,9 +167,11 @@ var getInstallationDetails = function(scope) {
     };
 
     if(gr.next()) {
+        var installDate = gr.getValue("install_date");
+
         installationDetails.installed = true;
-        installationDetails.installedOn = new GlideDateTime(gr.getValue("install_date")).getDate().getValue(),
-        installationDetails.version = gr.getValue("version")
+        installationDetails.installedOn = (installDate && installDate != null ? new GlideDateTime(installDate).getDate().getValue() : "");
+        installationDetails.version = gr.getValue("version");
     }
 
     return installationDetails;
@@ -343,6 +361,7 @@ var getPipelineConfigurations = function() {
     var results = {
         currentLanguage: getCurrentLanguage(),
         companyCode: getCompanyCode(),
+        polarisSettings: getPolarisSettings(),
         guidedSetupStatus: getAllGuidedSetupsStatuses(),
         installationStatus: getAllInstallationDetails(),
         applicationUsage: getApplicationUsage(),

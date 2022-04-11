@@ -22,7 +22,6 @@ var loadInstanceData = (instanceType) => {
                 instances[instanceName] = {
                     customer: data[1],
                     accountNo: accountNo,
-                    isAppEngineSubscriber: false,
                     version: data[3],
                     purpose: data[4],
                     category: data[5],
@@ -39,20 +38,58 @@ var loadInstanceData = (instanceType) => {
 };
 
 var loadAccountData = () => {
-	var promise = new Promise((resolve, reject) => {
+    var promise = new Promise((resolve, reject) => {
 		var accounts = {};
+        var fileName = path.join(__dirname, "all-customer-accounts.csv");
+
+		fastCsv.parseFile(fileName)
+			.on("data", data => {
+				var accountNo = data[0];
+
+				accounts[accountNo] = {
+					accountName: data[1],
+                    accountNo: accountNo,
+                    primarySalesRep: data[2],
+                    solutionConsultant: data[3],
+                    city: data[5],
+                    country: data[6],
+                    totalACV: data[10],
+                    accountType: data[11],
+                    isAppEngineSubscriber: false
+				};
+
+			})
+			.on("end", rowCount => {
+                console.log("Loaded " + Object.keys(accounts).length + " total accounts.");
+
+                loadAppEngineAccounts(accounts).then((a) => {
+                    resolve(a);
+                });
+			});
+	});
+
+	return promise;
+};
+
+var loadAppEngineAccounts = (accounts) => {
+	var promise = new Promise((resolve, reject) => {
+        var appEngineAccounts = 0;
         var fileName = path.join(__dirname, "app-engine-accounts.csv");
 
 		fastCsv.parseFile(fileName)
 			.on("data", data => {
-				var accountNo = data[2];
+				var accountNo = data[0],
+                    account = accounts[accountNo];
 
-				accounts[accountNo] = {
-					accountName: data[1]
-				};
+                if(account) {
+                    account.isAppEngineSubscriber = true;
+                    appEngineAccounts++;
+                } else {
+                    console.log("Could not find App Engine account " + accountNo);
+                }
 			})
 			.on("end", rowCount => {
-				console.log("Loaded " + Object.keys(accounts).length + " accounts.");
+				console.log("Identified " + appEngineAccounts + " App Engine Accounts.");
 				resolve(accounts);
 			});
 	});
@@ -69,8 +106,24 @@ var loadInstancesAndAccounts = function(instanceType) {
 
                     for(var instanceName in instances){
                         var instance = instances[instanceName];
-                        if(instance.accountNo && accounts[instance.accountNo])
-                            instance.isAppEngineSubscriber = true;
+                        var account = accounts[instance.accountNo];
+
+                        if(account == undefined) {
+                            account = {
+                                accountName: "",
+                                accountNo: instance.accountNo,
+                                primarySalesRep: "",
+                                solutionConsultant: "",
+                                city: "",
+                                country: "",
+                                totalACV: "",
+                                accountType: "",
+                                isAppEngineSubscriber: false
+                            };
+                        }
+                        
+                        instance.isAppEngineSubscriber = (instance.isAppEngineSubscriber || (account.isAppEngineSubscriber == true));
+                        instance.account = account;
                     }
 
                     resolve(instances);
@@ -109,13 +162,32 @@ var parseCsvFile = (fileName) => {
 
     var auditData = [];
 
-	var parsePayload = function(payload) {
+    var parsePayload = function(payload) {
+        var response = {
+            success: false
+        };
+
 		if(payload && payload.length && payload != EMPTY_PAYLOAD) {
-			if(payload.startsWith("*** Script: ")) {
-				var jsonString = payload.substring(11);
-				try { return JSON.parse(jsonString); } catch(e) {  }
-			}
-		}
+            var index = payload.lastIndexOf("*** Script:");
+
+            if(index != -1) {
+                var jsonString = payload.substring(index + 12);
+
+                try { 
+                    response.data = JSON.parse(jsonString);
+                    response.success = true;
+                } catch(e) {  
+                    response.errorMessage = e.message;
+                }
+            } else {
+                response.errorMessage = EMPTY_PAYLOAD;
+            }
+            
+		} else {
+            response.errorMessage = EMPTY_PAYLOAD;
+        }
+
+        return response;
 	};
 
 	var promise = new Promise((resolve, reject) => {
@@ -124,9 +196,18 @@ var parseCsvFile = (fileName) => {
 				instanceName: data[2],
 				auditState: data[0],
 				errorDescription: data[1],
-				success: (data[0] == AUDIT_STATE_COMPLETED),
-				data: parsePayload(data[3])
+				success: (data[0] == AUDIT_STATE_COMPLETED)
 			};
+
+            var response = parsePayload(data[3]);
+
+            if(response.success) {
+                row.data = response.data;
+                row.success = true;
+            } else {
+                row.success = false;
+                row.errorDescription = response.errorMessage;
+            }
 
             auditData.push(row);
 

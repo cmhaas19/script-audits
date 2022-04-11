@@ -2,185 +2,37 @@ const ExcelJS = require('exceljs');
 const fastCsv = require("fast-csv");
 const fs = require('fs');
 const moment = require('moment');
-const EMPTY_PAYLOAD = "Empty Payload";
-const AUDIT_STATE_COMPLETED = "Completed";
+const sharedData = require('../shared/shared');
 
 var FILE_DIRECTORY = "Customer";
 
-var loadInstanceData = () => {
-	var promise = new Promise((resolve, reject) => {
-
-		loadAllAccountData().then((accounts) => {
-			var instances = {};
-
-			fastCsv.parseFile("../shared/" + FILE_DIRECTORY + "-instances.csv")
-				.on("data", data => {
-					var instanceName = data[0],
-						accountNo = data[2],
-                        account = accounts[accountNo];
-
-                    if(account == undefined) {
-                        account = {
-                            accountName: data[1],
-                            accountNo: accountNo,
-                            primarySalesRep: "",
-                            solutionConsultant: "",
-                            city: "",
-                            country: "",
-                            totalACV: "",
-                            accountType: "Unknown",
-                            isAppEngineSubscriber: false
-                        };
-                    }
-
-					instances[instanceName] = {
-                        account: account,
-						version: data[3],
-						purpose: data[4],
-						category: data[5],
-						subCategory: data[6]
-					};
-				})
-				.on("end", () => {
-					console.log("Loaded " + Object.keys(instances).length + " instances.");
-					resolve(instances);
-				});
-		});
-	});
-
-	return promise;
-};
-
-var loadAllAccountData = () => {
-    var promise = new Promise((resolve, reject) => {
-		var accounts = {};
-
-		fastCsv.parseFile("../shared/all-customer-accounts.csv")
-			.on("data", data => {
-				var accountNo = data[0];
-
-				accounts[accountNo] = {
-					accountName: data[1],
-                    accountNo: accountNo,
-                    primarySalesRep: data[2],
-                    solutionConsultant: data[3],
-                    city: data[5],
-                    country: data[6],
-                    totalACV: data[10],
-                    accountType: data[11],
-                    isAppEngineSubscriber: false
-				};
-
-			})
-			.on("end", rowCount => {
-                loadAppEngineAccounts(accounts).then((a) => {
-                    console.log("Loaded " + Object.keys(a).length + " accounts.");
-                    resolve(a);
-                });
-			});
-	});
-
-	return promise;
-};
-
-var loadAppEngineAccounts = (accounts) => {
-	var promise = new Promise((resolve, reject) => {
-        var appEngineAccounts = 0;
-
-		fastCsv.parseFile("../shared/app-engine-accounts.csv")
-			.on("data", data => {
-				var accountNo = data[2],
-                    account = accounts[accountNo];
-
-                if(account) {
-                    account.isAppEngineSubscriber = true;
-                    appEngineAccounts++;
-                }
-			})
-			.on("end", rowCount => {
-				console.log("Identified " + appEngineAccounts + " App Engine Accounts.");
-				resolve(accounts);
-			});
-	});
-
-	return promise;
-};
-
 var parseCsvFile = (propertyName, auditData) => {
+    var promise = new Promise((resolve, reject) => { 
+        var fileName = FILE_DIRECTORY + "/" + propertyName + ".csv";
 
-    if(auditData[propertyName] == undefined)
-        auditData[propertyName] = [];
+        sharedData.parseCsvFile(fileName).then((data) => {
+            auditData[propertyName] = data;
+            resolve(auditData);
+        });
+    });
 
-	var parsePayload = function(payload) {
-        var response = {
-            success: false
-        };
-
-		if(payload && payload.length && payload != EMPTY_PAYLOAD) {
-            var index = payload.lastIndexOf("*** Script:");
-
-            if(index != -1) {
-                var jsonString = payload.substring(index + 12);
-
-                try { 
-                    response.data = JSON.parse(jsonString);
-                    response.success = true;
-                } catch(e) {  
-                    response.errorMessage = e.message;
-                }
-            } else {
-                response.errorMessage = EMPTY_PAYLOAD;
-            }
-            
-		} else {
-            response.errorMessage = EMPTY_PAYLOAD;
-        }
-
-        return response;
-	};
-
-    var fileName = FILE_DIRECTORY + "/" + propertyName + ".csv";
-
-	var promise = new Promise((resolve, reject) => {
-		fastCsv.parseFile(fileName).on("data", data => {
-			var row = {
-				instanceName: data[2],
-				auditState: data[0],
-				errorDescription: data[1],
-				success: (data[0] == AUDIT_STATE_COMPLETED)
-			};
-
-            var response = parsePayload(data[3]);
-
-            if(response.success) {
-                row.data = response.data;
-                row.success = true;
-            } else {
-                row.success = false;
-                row.errorDescription = response.errorMessage;
-            }
-
-            auditData[propertyName].push(row);
-
-		})
-		.on("end", rowCount => resolve(auditData) );
-	});
-
-	return promise;
+    return promise;
 };
 
 var loadAllFiles = (instances) => {
     var promise = new Promise((resolve, reject) => {
         var auditData = {};
         
-        parseCsvFile("settings", auditData)
-            .then((auditData) => parseCsvFile("roles", auditData))
-            .then((auditData) => parseCsvFile("templates", auditData))
+        parseCsvFile("artifacts", auditData)            
             .then((auditData) => parseCsvFile("customApps", auditData))
             .then((auditData) => parseCsvFile("customAppsAggregates", auditData))
+            .then((auditData) => parseCsvFile("roles", auditData))
+            .then((auditData) => parseCsvFile("settings", auditData))
             .then((auditData) => parseCsvFile("storeApps", auditData))
-            .then((auditData) => parseCsvFile("artifacts", auditData))
-            .then((auditData) => parseCsvFile("templateApps", auditData))
+            .then((auditData) => parseCsvFile("templateApps", auditData)) 
+            .then((auditData) => parseCsvFile("templates", auditData))
+            .then((auditData) => parseCsvFile("templatesCustom", auditData))
+            .then((auditData) => parseCsvFile("templatesInstalled", auditData))
             .then((auditData) => {
                 var combined = {};
 
@@ -301,6 +153,9 @@ var aggregateCustomApps = (auditData) => {
         settings: [ [Object] ],
         roles: [ [Object] ],
         templates: [ [Object] ],
+        templateApps: [ [Object] ],
+        templatesInstalled: [ [Object] ],
+        templatesCustom: [ [Object] ],
         customApps: [ [Object] ],
         customAppsAggregates: [ [Object] ],
         storeApps: [ [Object] ],
@@ -669,11 +524,63 @@ var writeWorkbook = (auditData) => {
         })();
 
         //
+        // Installed Templates
+        //
+        (function(){
+
+            const workSheet = wb.addWorksheet('Templates - Installed');
+	
+			workSheet.columns = generateColumns([
+                { header: 'Template ID', width: 32 },
+				{ header: 'Template Name', width: 24 },	
+                { header: 'Active', width: 15 },
+                { header: 'Is App', width: 15 },
+                { header: 'Is Snapshot', width: 15 },
+                { header: 'Scope', width: 15 },
+                { header: 'Type', width: 15 },
+				{ header: 'Created On', width: 17 },
+                { header: 'Created On YYYY-MM', width: 28 },
+			]);
+            workSheet.autoFilter = { from: 'A1', to: 'P1' };
+
+            for(var instanceName in auditData){
+                var instance = auditData[instanceName];
+
+                if(instance.templatesInstalled) {
+                    instance.templatesInstalled.forEach(row => {
+                        if(row.data && row.data.installedTemplates) {
+                            var templates = row.data.installedTemplates;
+    
+                            for(var templateId in templates) {
+                                var template = templates[templateId];
+
+                                workSheet.addRow(generateRowValues(instanceName, instance, [
+                                    templateId,
+                                    template.name,
+                                    template.active,
+                                    template.isApp,
+                                    template.snapshot,
+                                    template.scope,
+                                    template.type,
+                                    template.createdOn,
+                                    moment(template.createdOn, 'YYYY-MM-DD').format("YYYY-MM")
+                                ]));
+                            }
+                        }
+                    });
+                }
+            }
+
+            console.log("Parsed custom templates");
+
+        })();
+
+        //
         // Templates Worksheet
         //
         (function(){
 
-            const workSheet = wb.addWorksheet('Template Usage');
+            const workSheet = wb.addWorksheet('Templates - Usage');
 	
 			workSheet.columns = generateColumns([
 				{ header: 'Template Name', width: 24 },
@@ -723,6 +630,103 @@ var writeWorkbook = (auditData) => {
             }
 
             console.log("Parsed templates");
+
+        })();
+
+        //
+        // Custom Templates Worksheet
+        //
+        (function(){
+
+            const workSheet = wb.addWorksheet('Templates - Custom');
+	
+			workSheet.columns = generateColumns([
+                { header: 'Template ID', width: 32 },
+				{ header: 'Template Name', width: 24 },	
+                { header: 'Type', width: 24 },	
+                { header: 'Active', width: 15 },			
+                { header: 'Scope', width: 15 },
+				{ header: 'Created On', width: 17 },
+                { header: 'Created On YYYY-MM', width: 28 },
+			]);
+            workSheet.autoFilter = { from: 'A1', to: 'P1' };
+
+            for(var instanceName in auditData){
+                var instance = auditData[instanceName];
+
+                if(instance.templatesCustom) {
+                    instance.templatesCustom.forEach(row => {
+                        if(row.data && row.data.templates) {
+                            var templates = row.data.templates;
+    
+                            for(var templateId in templates) {
+                                var template = templates[templateId];
+                                //var templateType = TEMPLATE_TYPES[template.type];
+
+                                workSheet.addRow(generateRowValues(instanceName, instance, [
+                                    templateId,
+                                    template.name,
+                                    template.type,
+                                    template.active,
+                                    template.scope,
+                                    template.createdOn,
+                                    moment(template.createdOn, 'YYYY-MM-DD').format("YYYY-MM")
+                                ]));
+                            }
+                        }
+                    });
+                }
+            }
+
+            console.log("Parsed custom templates");
+
+        })();
+
+        //
+        // Custom Template Content Worksheet
+        //
+        (function(){
+
+            const workSheet = wb.addWorksheet('Templates - Custom - Contents');
+	
+			workSheet.columns = generateColumns([
+                { header: 'Template ID', width: 32 },
+				{ header: 'Template Name', width: 24 },	
+                { header: 'Scope', width: 15 },
+				{ header: 'Artifact', width: 17 },
+                { header: 'Artifact Count', width: 15 },
+			]);
+            workSheet.autoFilter = { from: 'A1', to: 'N1' };
+
+            for(var instanceName in auditData){
+                var instance = auditData[instanceName];
+
+                if(instance.templatesCustom) {
+                    instance.templatesCustom.forEach(row => {
+                        if(row.data && row.data.templates) {
+                            var templates = row.data.templates;
+    
+                            for(var templateId in templates) {
+                                var template = templates[templateId];
+
+                                if(template.contents) {
+                                    for(var artifact in template.contents) {
+                                        workSheet.addRow(generateRowValues(instanceName, instance, [
+                                            templateId,
+                                            template.name,
+                                            template.scope,
+                                            artifact,
+                                            template.contents[artifact]
+                                        ]));
+                                    }
+                                }                                
+                            }
+                        }
+                    });
+                }
+            }
+
+            console.log("Parsed custom template artifacts");
 
         })();
 
@@ -891,8 +895,11 @@ var writeWorkbook = (auditData) => {
     if(args && args.length >= 3)
         FILE_DIRECTORY = args[2];
 
-    loadInstanceData()
-        .then((instances) => loadAllFiles(instances))
-        .then((auditData) => writeWorkbook(auditData));
-
+    sharedData.loadInstancesAndAccounts()
+        .then((instances) => {
+            loadAllFiles(instances).then((auditData) => {
+                //console.log(auditData);
+                writeWorkbook(auditData);
+            });           
+        });
 })();

@@ -7,6 +7,26 @@ var CONSTANTS = {
     AES_PLUGIN_ID: "com.snc.app-engine-studio"
 };
 
+var getPropertyValue = function(name){
+    var value = gs.getProperty(name);
+
+	if(value == undefined || value == null || value.length == 0)
+		return "";
+
+    return value;
+};
+
+var getPolarisSettings = function() {
+    return {
+        "glide.ui.polaris.menus": getPropertyValue("glide.ui.polaris.menus"),
+        "glide.ui.polaris.login.show_illustrations": getPropertyValue("glide.ui.polaris.login.show_illustrations"),
+        "glide.ui.polaris.list_style.enable_highlighted_value_style": getPropertyValue("glide.ui.polaris.list_style.enable_highlighted_value_style"),
+        "glide.ui.polaris.global_search": getPropertyValue("glide.ui.polaris.global_search"),
+        "glide.ui.polaris.experience": getPropertyValue("glide.ui.polaris.experience"),
+        "glide.ui.polaris.dark_themes_enabled": getPropertyValue("glide.ui.polaris.dark_themes_enabled")
+    };
+};
+
 var getGuidedSetupStatus = function() {
 
 	var setupStatus = {};
@@ -147,9 +167,11 @@ var getInstallationDetails = function() {
     };
 
     if(gr.next()) {
+        var installDate = gr.getValue("install_date");
+
         installationDetails.installed = true;
-        installationDetails.installedOn = gr.getValue("install_date");
-        installationDetails.version = gr.getValue("version")
+        installationDetails.installedOn = (installDate && installDate != null ? new GlideDateTime(installDate).getDate().getValue() : "");
+        installationDetails.version = gr.getValue("version");
     }
 
     try {
@@ -195,6 +217,8 @@ var getCurrentLanguage = function() {
 
     var results = {
         currentLanguage: getCurrentLanguage(),
+		polarisSettings: getPolarisSettings(),
+		legacyWorkspaceEnabled: getPropertyValue("sn_g_app_creator.allow_legacy_workspace"),
         installationDetails: getInstallationDetails(),
         applicationUsage: getApplicationUsage(),
         systemPropertySettings: getSystemPropertySettings(),
