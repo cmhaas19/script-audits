@@ -638,9 +638,72 @@ var processSystemProperties = () => {
     return promise;
 };
 
+
+var processTaskFormFields = () => {
+    var promise = new Promise((resolve, reject) => {
+
+        var wb = new ExcelJS.stream.xlsx.WorkbookWriter({
+            filename: "custom-task-table-form-fields.xlsx"
+        });
+
+        var fileName = path.join(__dirname, "audits", "tables-from-task.csv");       
+
+        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+            var worksheet = wb.addWorksheet("Task Form Fields");
+    
+            worksheet.columns = [
+                { header: 'Instance Name', width: 22 },
+                { header: 'Company', width: 16 },
+                { header: 'Account No.', width: 13 },
+                { header: 'Field Name', width: 13 },
+                { header: 'Count', width: 13 }
+            ];
+            
+            auditData.forEach((row) => {
+
+                if(row.data && row.data) {
+                    for(var fieldName in row.data){
+                        if(row.instance) {
+                            worksheet.addRow([
+                                row.instanceName,
+                                row.instance.customer, 
+                                row.instance.accountNo,
+                                fieldName,
+                                row.data[fieldName]
+                            ]);
+                        } else {
+                            worksheet.addRow([
+                                row.instanceName,
+                                "", 
+                                "",
+                                fieldName,
+                                row.data[fieldName]
+                            ]);
+                        }
+                    }
+                }
+            });
+
+            worksheet.commit();
+            
+            wb.commit().then(() => {
+                console.log("Completed task form fields");
+                resolve();
+            });
+
+        });
+
+    });
+
+    return promise;
+};
+
 (function(){
 
+    processTaskFormFields().then(() => { console.log("Done") });
+    /*
     processTables()
+        .then(() => processTaskFormFields()
         .then(() => processSystemProperties()
         .then(() => processScheduledScripts()
         .then(() => processBusinessRules()
@@ -648,6 +711,7 @@ var processSystemProperties = () => {
         .then(() => processRoles()
         .then(() => processReports()
         .then(() => processEventRegistry()
-        .then(() => { console.log("Done") }))))))));
+        .then(() => { console.log("Done") })))))))));
+    */
 
 })();

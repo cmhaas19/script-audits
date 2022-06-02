@@ -4,7 +4,7 @@ const sharedData = require('../shared/shared');
 const ExcelJS = require('exceljs');
 const fastCsv = require("fast-csv");
 const moment = require("moment");
-
+var _ = require('lodash');
 
 var loadPackages = () => {
     var fileName = path.join(__dirname, "packages.csv");
@@ -100,11 +100,40 @@ var loadPackages = () => {
             }
     
             console.log("Found " + Object.keys(artifacts).length + " unique artifacts");
+
+            
+
+            //
+            // Figure out the most common app composition
+            //
+            var compositions = [];
+
+            for(var scope in scopes){
+                var artifacts = Object.keys(scopes[scope].artifacts);
+                var composition = null;
+                
+                for(var i = 0, len = compositions.length; i < len; i++) {
+                    if(_.isEqual(artifacts, compositions[i].artifacts)) {
+                        composition = compositions[i];
+                        break;
+                    } 
+                }
+
+                if(composition != null) {
+                    composition.count++;
+                } else {
+                    compositions.push({ count: 1, artifacts: artifacts});
+                }
+            }
+
+            compositions.sort((a, b) => (a.count < b.count) ? 1 : -1);
+
+            console.log(compositions);
+            return;
     
             //
             // Now, let's write the data
             //
-            //var wb = new ExcelJS.Workbook();
             var wb = new ExcelJS.stream.xlsx.WorkbookWriter({
                 filename: "custom-app-artifacts.xlsx"
             });
@@ -182,14 +211,6 @@ var loadPackages = () => {
             wb.commit().then(() => {
                 console.log("Created file");
             });
-    
-            /*
-            var resultsFileName = "custom-app-artifacts.xlsx";        
-    
-            wb.xlsx.writeFile(resultsFileName).then(() => {
-                console.log("Created file " + resultsFileName);
-            });
-            */
 
         });
     });

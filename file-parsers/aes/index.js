@@ -288,6 +288,7 @@ var writeWorkbook = (auditData) => {
             var customers = {};            
 
             generalSheet.columns = generateColumns([
+                { header: 'Oracle Db', width: 12 },
                 { header: 'Licensed for AES', width: 15 },
                 { header: 'AES Installed', width: 13 },
                 { header: 'AES Installed On', width: 17 },
@@ -295,11 +296,10 @@ var writeWorkbook = (auditData) => {
                 { header: 'AES Version', width: 17 },
                 { header: 'Guided Setup Status', width: 19 },
                 { header: 'Guided Setup Progress', width: 20 },
-                { header: 'App Intake Installed?', width: 20 },
-                { header: 'App Intake Active?', width: 20 },
-                { header: 'No. of App Intake Requests', width: 20 }
+                { header: 'Polaris Enabled', width: 20 },
+                { header: 'Legacy Workspace Enabled', width: 20 }
             ]);
-            generalSheet.autoFilter = { from: 'A1', to: 'S1' };
+            generalSheet.autoFilter = { from: 'A1', to: 'T1' };
 
             customerSheet.columns = [
                 { header: 'Customer', width: 20 },
@@ -338,6 +338,8 @@ var writeWorkbook = (auditData) => {
                             var details = row.data.installationDetails;
                             var installedFormated = "";
 
+                            values.push(instance.instanceInfo != undefined ? instance.instanceInfo.usesOracle : "false");
+
                             if(details.installed === true && details.installedOn) {
                                 installedFormated = moment(details.installedOn).format("YYYY-MM");
                             }
@@ -367,11 +369,14 @@ var writeWorkbook = (auditData) => {
                             }
 
                             //
-                            // App Intake
+                            // Polaris & Legacy Workspace
                             //
-                            if(row.data.appIntakeUsage) {
-                                values.push(row.data.appIntakeUsage.installed, row.data.appIntakeUsage.active, row.data.appIntakeUsage.requestCounts);
+                            var polarisEnabled = "";
+                            if(row.data.polarisSettings) {
+                                polarisEnabled = row.data.polarisSettings["glide.ui.polaris.experience"].toString().toLowerCase();
                             }
+
+                            values.push(polarisEnabled, row.data.legacyWorkspaceEnabled);
         
                             generalSheet.addRow(generateRowValues(instanceName, instance, values));
                         }

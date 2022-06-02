@@ -25,7 +25,8 @@ var loadInstanceData = (instanceType) => {
                     version: data[3],
                     purpose: data[4],
                     category: data[5],
-                    subCategory: data[6]
+                    subCategory: data[6],
+                    usesOracle: (data[7] == "true")
                 };
             })
             .on("end", () => {
