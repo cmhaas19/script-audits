@@ -60,19 +60,6 @@ var generateRowValues = (instanceName, instance, values) => {
 };
 
 /*
-var generateRowValues = (instanceName, instance, values) => {
-    var rowValues = [];
-
-    if(instance)
-        rowValues = [instanceName, instance.customer, instance.accountNo, instance.isAppEngineSubscriber, instance.version, instance.purpose];
-    else
-        rowValues = [instanceName,"","","","",""];
-
-    return rowValues.concat(values);
-};
-*/
-
-/*
 {
    "companyCode":"chri2",
    "currentLanguage":"es",
@@ -272,73 +259,76 @@ var processNowExperiences = (AES_SCOPES) => {
 }
 */
 
-var processPortals = () => {
+
+
+var processCustomComponents = () => {
     var promise = new Promise((resolve, reject) => {
 
         var wb = new ExcelJS.stream.xlsx.WorkbookWriter({
-            filename: "portals-results.xlsx"
+            filename: "seismic-components-results.xlsx"
         });
 
-        var fileName = path.join(__dirname, "audits/service-portals.csv");       
+        var fileName = path.join(__dirname, "audits/seismic-components.csv");
 
         sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
-            var ws = wb.addWorksheet("Portals");
-    
-            ws.columns = generateColumns([
-                { header: 'SysID', width: 20 },
-                { header: 'Title', width: 20 },
-                { header: 'URL Suffix', width: 20 },
-                { header: 'Scope', width: 20 },
-                { header: 'Created', width: 20 },
-                { header: 'Created YYYY-MM', width: 20 },
-                { header: 'Updated', width: 20 },
-                { header: 'Updated YYYY-MM', width: 20 }
-            ]);
+            var tables = ["sys_ux_macroponent","sys_ux_lib_component","sys_uib_toolbox_component","sys_ux_lib_source_script"];
 
-            var ALL_PORTALS = {};
+            tables.forEach((table) => {
+                var columns = {};
 
-            auditData.forEach((row) => { 
-                if(row.instance && row.instance.purpose == "Production" && row.data && row.data.portals){
-                    for(var id in row.data.portals) {
-                        if(ALL_PORTALS[id] == undefined)
-                            ALL_PORTALS[id] = 0;
-                        ALL_PORTALS[id]++;
+                //
+                // Build the column set
+                //
+                auditData.forEach((row) => { 
+                    if(row.data && row.data.components && row.data.components[table]) {
+                        var list = row.data.components[table];
+
+                        list.forEach((item) => {
+                            Object.keys(item).forEach((key) => {
+                                if(columns[key] == undefined)
+                                    columns[key] = true;
+                            });
+                        });
                     }
+                });
+
+                //
+                // Create worksheet & columns
+                //    
+                var ws = wb.addWorksheet(table);
+                var headers = [];
+
+                for(var column in columns) {
+                    headers.push({ header: column, width: 20 });
                 }
-            });
 
-            auditData.forEach((row) => {
+                ws.columns = generateColumns(headers);
 
-                if(row.data && row.data.portals) {
+                //
+                // Now build the rows
+                //
+                auditData.forEach((row) => { 
+                    if(row.data && row.data.components && row.data.components[table]) {
+                        var list = row.data.components[table];
+                        
+                        list.forEach((item) => {
+                            var values = [];
 
-                    for(var id in row.data.portals) {
-                        var ex = row.data.portals[id];
+                            for(var column in columns) {
+                                values.push(item[column]);
+                            }
 
-                        if(EXCLUDED_PORTALS[id] != undefined)
-                            continue;
-
-                        if(ALL_PORTALS[id] > 1)
-                            continue;
-
-                        ws.addRow(
-                            generateRowValues(row.instanceName, row.instance, [
-                                id,
-                                ex.title,
-                                ex.urlSuffix,
-                                ex.scope,
-                                ex.createdOn,
-                                moment(ex.createdOn).format("YYYY-MM"),
-                                ex.updatedOn,
-                                moment(ex.updatedOn).format("YYYY-MM")
-                            ])).commit();
+                            ws.addRow(
+                                generateRowValues(row.instanceName, row.instance, values)).commit();
+                        });                        
                     }
-                }
-            });
+                });
 
-            ws.commit();
+                ws.commit();
+            });
 
             wb.commit().then(() => {
-                console.log("Processed Portals");
+                console.log("Processed Custom Components");
                 resolve();
             });
         });
@@ -349,7 +339,8 @@ var processPortals = () => {
 
 (function(){
 
-    processTemplateScopes().then(processNowExperiences);
-    //processPortals();
+    //processTemplateScopes().then(processNowExperiences);
+    processPortals();
+    //processCustomComponents();
 
 })();
