@@ -22,7 +22,7 @@ var EXCLUDED_PORTALS = {
     "1dd44a90c3310200b7b87868e1d3aea2":"HR Service Portal"
 };
 
-var parsePortals = () => {
+var parsePortals = (distinct) => {
     var promise = new Promise((resolve, reject) => {
 
         var fileName = path.join(__dirname, "./audits/service-portals.csv");       
@@ -30,6 +30,7 @@ var parsePortals = () => {
         sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var portals = new Data.DataTable("Portals");
             var distinctPortals = {};
+            var isDistinct = (distinct === true);
     
             portals.columns = [
                 'SysID',
@@ -55,7 +56,7 @@ var parsePortals = () => {
                         if(EXCLUDED_PORTALS[id] != undefined)
                             continue;
 
-                        if(distinctPortals[id] != undefined)
+                        if(isDistinct && distinctPortals[id] != undefined)
                             continue;
 
                         distinctPortals[id] = true;

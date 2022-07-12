@@ -4,7 +4,7 @@ const moment = require("moment");
 const Data = require('./common/DataSet.js');
 const common = require('./common/common.js');
 
-var parseComponents = () => {
+var parseComponents = (distinct) => {
     var promise = new Promise((resolve, reject) => {
 
         var fileName = path.join(__dirname, "./audits/seismic-components.csv");
@@ -13,6 +13,7 @@ var parseComponents = () => {
             var components = new Data.DataTable("Custom Components");
             var distinctComponents = {};
             var summary = {};
+            var isDistinct = (distinct === true);
 
             components.columns = [
                 'SysID',
@@ -30,7 +31,7 @@ var parseComponents = () => {
                     row.data.components.sys_ux_macroponent.forEach((c) => {
 
                         if(c.category == "component") {
-                            if(distinctComponents[c.sys_id] == undefined) {
+                            if(!isDistinct || distinctComponents[c.sys_id] == undefined) {
                                 distinctComponents[c.sys_id] = true;
     
                                 var component = {

@@ -7,14 +7,16 @@ const components = require('./components');
 
 
 (function() {
+    var isDistinct = true;
+    var fileName = (isDistinct ? "ux-editing-results.xlsx" : "ux-editing-results-all.xlsx");
 
-    var wb = new workBook.Workbook("./results/ux-editing-results.xlsx");
+    var wb = new workBook.Workbook("./results/" + fileName);
 
     Promise.all([ 
-        nowExperiences.getExperiences(), 
-        legacyWorkspaces.getWorkspaces(),
-        servicePortals.getPortals(),
-        components.getComponents()
+        nowExperiences.getExperiences(isDistinct), 
+        legacyWorkspaces.getWorkspaces(isDistinct),
+        servicePortals.getPortals(isDistinct),
+        components.getComponents(isDistinct)
 
     ]).then((dataSets) => {
         dataSets.forEach((dataSet) => { 

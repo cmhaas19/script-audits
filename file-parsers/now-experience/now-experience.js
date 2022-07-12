@@ -20,7 +20,7 @@ var EXCLUDED_ADMIN_PANEL_TABLES = {
     "sys_aw_master_config": "Legacy Agent Workspace"
 };
 
-var parseNowExperiences = () => {
+var parseNowExperiences = (distinct) => {
     var promise = new Promise((resolve, reject) => {
 
         var fileName = path.join(__dirname, "audits/now-experiences.csv");
@@ -66,6 +66,7 @@ var parseNowExperiences = () => {
             routes.columns = routeColumns;
 
             var distinctExperienceIds = {};
+            var isDistinct = (distinct === true);
 
             auditData.forEach((row) => {
 
@@ -80,7 +81,7 @@ var parseNowExperiences = () => {
                         if(ex.adminPanel && EXCLUDED_ADMIN_PANEL_TABLES[ex.adminPanel.table] != undefined)
                             continue;
                             
-                        if(distinctExperienceIds[id] != undefined)
+                        if(isDistinct && distinctExperienceIds[id] != undefined)
                             continue;
 
                         distinctExperienceIds[id] = true;

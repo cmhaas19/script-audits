@@ -68,7 +68,7 @@ var getScopePrefix = (s) => {
     return scopePrefix;
 };
 
-var process = () => {
+var process = (distinct) => {
     var promise = new Promise((resolve, reject) => {
 
         var fileName = path.join(__dirname, "./audits/workspaces.csv");       
@@ -78,6 +78,7 @@ var process = () => {
             var modules = new Data.DataTable("Legacy Workspace Modules");
             var lists = new Data.DataTable("Legacy Workspace Lists");
             var distinctWorkspaces = {};
+            var isDistinct = (distinct === true);
             var summary = {};
     
             general.columns = [
@@ -124,7 +125,7 @@ var process = () => {
                         if(!isCustomWorkspace(workspaceId))
                             continue;
 
-                        if(distinctWorkspaces[workspaceId] != undefined)
+                        if(isDistinct && distinctWorkspaces[workspaceId] != undefined)
                            continue;
 
                         distinctWorkspaces[workspaceId] = true;
