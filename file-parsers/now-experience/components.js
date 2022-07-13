@@ -31,8 +31,10 @@ var parseComponents = (distinct) => {
                     row.data.components.sys_ux_macroponent.forEach((c) => {
 
                         if(c.category == "component") {
-                            if(!isDistinct || distinctComponents[c.sys_id] == undefined) {
-                                distinctComponents[c.sys_id] = true;
+                            var isProduction = common.isProductionInstance(row.instance);
+                            
+                            if(!isDistinct || distinctComponents[c.sys_id] == undefined || (isProduction && distinctComponents[c.sys_id] === false)) {
+                                distinctComponents[c.sys_id] = isProduction;
     
                                 var component = {
                                     id: c.sys_id,
@@ -53,7 +55,7 @@ var parseComponents = (distinct) => {
                                     summary[account.accountNo] = { account: account, dataItem: { total: 0, production: 0 } };
 
                                 summary[account.accountNo].dataItem.total++;
-                                summary[account.accountNo].dataItem.production += (common.isProductionInstance(row.instance) ? 1 : 0);
+                                summary[account.accountNo].dataItem.production += (isProduction ? 1 : 0);
                             }
                         }
                     });

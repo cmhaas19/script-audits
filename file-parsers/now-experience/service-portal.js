@@ -49,6 +49,7 @@ var parsePortals = (distinct) => {
             auditData.forEach((row) => {
 
                 if(row.data && row.data.portals) {
+                    var isProduction = common.isProductionInstance(row.instance);
 
                     for(var id in row.data.portals) {
                         var ex = row.data.portals[id];
@@ -56,10 +57,10 @@ var parsePortals = (distinct) => {
                         if(EXCLUDED_PORTALS[id] != undefined)
                             continue;
 
-                        if(isDistinct && distinctPortals[id] != undefined)
+                        if(isDistinct && (distinctPortals[id] != undefined || (isProduction && distinctPortals[id] === false)))
                             continue;
 
-                        distinctPortals[id] = true;
+                        distinctPortals[id] = isProduction;
 
                         portals.addRow(new Data.DataRow(row.instanceName, row.instance, {
                             id: id,
@@ -78,7 +79,7 @@ var parsePortals = (distinct) => {
                             summary[account.accountNo] = { account: account, dataItem: { total: 0, production: 0 } };
 
                         summary[account.accountNo].dataItem.total++;
-                        summary[account.accountNo].dataItem.production += (common.isProductionInstance(row.instance) ? 1 : 0);
+                        summary[account.accountNo].dataItem.production += (isProduction ? 1 : 0);
                     }
                 }
             });

@@ -121,14 +121,15 @@ var process = (distinct) => {
                 if(row.data) {
                     for(var workspaceId in row.data) {
                         var workspace = row.data[workspaceId];
+                        var isProduction = common.isProductionInstance(row.instance);
 
                         if(!isCustomWorkspace(workspaceId))
                             continue;
 
-                        if(isDistinct && distinctWorkspaces[workspaceId] != undefined)
+                        if(isDistinct && (distinctWorkspaces[workspaceId] != undefined || (isProduction && distinctWorkspaces[workspaceId] === false)))
                            continue;
 
-                        distinctWorkspaces[workspaceId] = true;
+                        distinctWorkspaces[workspaceId] = isProduction;
 
                         var ws = {
                             id: workspaceId,
@@ -192,7 +193,7 @@ var process = (distinct) => {
                             summary[account.accountNo] = { account: account, dataItem: { total: 0, production: 0 } };
 
                         summary[account.accountNo].dataItem.total++;
-                        summary[account.accountNo].dataItem.production += (common.isProductionInstance(row.instance) ? 1 : 0);
+                        summary[account.accountNo].dataItem.production += (isProduction ? 1 : 0);
                     }
                 }
             });

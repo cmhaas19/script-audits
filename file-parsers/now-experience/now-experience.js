@@ -71,6 +71,7 @@ var parseNowExperiences = (distinct) => {
             auditData.forEach((row) => {
 
                 if(row.data && row.data.experiences) {
+                    var isProduction = common.isProductionInstance(row.instance);
 
                     for(var id in row.data.experiences) {
                         var ex = row.data.experiences[id];
@@ -80,11 +81,11 @@ var parseNowExperiences = (distinct) => {
 
                         if(ex.adminPanel && EXCLUDED_ADMIN_PANEL_TABLES[ex.adminPanel.table] != undefined)
                             continue;
-                            
-                        if(isDistinct && distinctExperienceIds[id] != undefined)
-                            continue;
+                        
+                        if(isDistinct && (distinctExperienceIds[id] != undefined || (isProduction && distinctExperienceIds[id] === false)))
+                           continue;
 
-                        distinctExperienceIds[id] = true;
+                        distinctExperienceIds[id] = isProduction;
 
                         var experience = {
                             id: id,
@@ -128,7 +129,7 @@ var parseNowExperiences = (distinct) => {
                             summary[account.accountNo] = { account: account, dataItem: { total: 0, production: 0 } };
 
                         summary[account.accountNo].dataItem.total++;
-                        summary[account.accountNo].dataItem.production += (common.isProductionInstance(row.instance) ? 1 : 0);
+                        summary[account.accountNo].dataItem.production += (isProduction ? 1 : 0);
                     }
                 }
             });
