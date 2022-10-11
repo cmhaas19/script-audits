@@ -125,9 +125,12 @@ var aggregateCustomApps = (auditData) => {
 
         if(instance.templateApps) {
             instance.templateApps.forEach((row) => {
-                if(row.data && row.data.aesApps) {
-                    for(var id in row.data.aesApps) {
-                        var app = row.data.aesApps[id];
+                if(row.data && row.data.aesApps && row.data.aesApps.apps) {
+                    var templateLookup = row.data.aesApps.templates;
+
+                    for(var id in row.data.aesApps.apps) {
+                        var templateKey = row.data.aesApps.apps[id];
+                        var templateId = templateLookup[templateKey];
 
                         if(combinedApps[id] == undefined) {
                             combinedApps[id] = {
@@ -136,7 +139,11 @@ var aggregateCustomApps = (auditData) => {
                             };
                         }
 
-                        combinedApps[id].templateId = app;
+                        combinedApps[id].templateId = templateId;
+                    }
+
+                    if(row.data.aesAppsCount > 750) {
+                        console.log(instanceName + " created " + row.data.aesAppsCount + " AES apps");
                     }
                 }
             });
@@ -175,8 +182,11 @@ var aggregateCustomApps = (auditData) => {
 */
 var writeWorkbook = (auditData) => {
     var promise = new Promise((resolve, reject) => {
-        var wb = new ExcelJS.Workbook();
+        //var wb = new ExcelJS.Workbook();
         var fileName = FILE_DIRECTORY + "/processed-results.xlsx";
+        var wb = new ExcelJS.stream.xlsx.WorkbookWriter({
+            filename: fileName
+        });
         
 
         var generateColumns = (values) => {
@@ -239,6 +249,18 @@ var writeWorkbook = (auditData) => {
             { header: '', width: 34 },
             { header: '', width: 34 }
         ];
+
+        var AES_VERSIONS = {
+            "1.0.6": 106,
+            "1.1.1": 111,
+            "20.0.1": 2001,
+            "20.1.0": 2010,
+            "20.1.1": 2011,
+            "20.2.2": 2022,
+            "21.0.1": 2101,
+            "21.1.3": 2113,
+            "22.0.3": 2203
+        };
 
         //
         // Get template names (in english)
@@ -307,10 +329,12 @@ var writeWorkbook = (auditData) => {
                 { header: 'Account Type', width: 20 },
                 { header: 'Primary Rep', width: 20 },
                 { header: 'Solution Consultant', width: 20 },
+                { header: 'App Engine Subscriber', width: 22 },
                 { header: 'AES Installed On', width: 17 },
-                { header: 'AES Installed On YYYY-MM', width: 12 }
+                { header: 'AES Installed On YYYY-MM', width: 12 },
+                { header: 'AES Version', width: 17 },
             ];
-            customerSheet.autoFilter = { from: 'A1', to: 'G1' };
+            customerSheet.autoFilter = { from: 'A1', to: 'H1' };
 
             usageSheet.columns = generateColumns([
                 { header: 'Application', width: 14 },
@@ -359,8 +383,21 @@ var writeWorkbook = (auditData) => {
                                 //
                                 // Track the minimum install date by customer
                                 //
-                                if(customers[instance.instanceInfo.account.accountNo] == undefined)
-                                    customers[instance.instanceInfo.account.accountNo] = { installedOn: details.installedOn, account: instance.instanceInfo.account };
+                                if(customers[instance.instanceInfo.account.accountNo] == undefined){
+                                    customers[instance.instanceInfo.account.accountNo] = { 
+                                        installedOn: details.installedOn, 
+                                        installedVersion: {
+                                            number: AES_VERSIONS[details.version],
+                                            text: details.version
+                                        }, 
+                                        account: instance.instanceInfo.account 
+                                    };
+                                }
+
+                                if(customers[instance.instanceInfo.account.accountNo].installedVersion.number < AES_VERSIONS[details.version]) {
+                                    customers[instance.instanceInfo.account.accountNo].installedVersion.number = AES_VERSIONS[details.version];
+                                    customers[instance.instanceInfo.account.accountNo].installedVersion.text = details.version;
+                                }
 
                                 if(moment(details.installedOn).isBefore(customers[instance.instanceInfo.account.accountNo].installedOn)){
                                     customers[instance.instanceInfo.account.accountNo].installedOn = details.installedOn;
@@ -378,7 +415,7 @@ var writeWorkbook = (auditData) => {
 
                             values.push(polarisEnabled, row.data.legacyWorkspaceEnabled);
         
-                            generalSheet.addRow(generateRowValues(instanceName, instance, values));
+                            generalSheet.addRow(generateRowValues(instanceName, instance, values)).commit();
                         }
 
                         //
@@ -391,7 +428,7 @@ var writeWorkbook = (auditData) => {
                                 var app = usage[appName];
 
                                 for(var month in app){
-                                    usageSheet.addRow(generateRowValues(instanceName, instance, [appName, month, parseInt(app[month])]));
+                                    usageSheet.addRow(generateRowValues(instanceName, instance, [appName, month, parseInt(app[month])])).commit();
                                 }
                             }
                         }
@@ -401,7 +438,7 @@ var writeWorkbook = (auditData) => {
                         //
                         if(row.data && row.data.systemPropertySettings) {
                             for(var propertyName in row.data.systemPropertySettings) {
-                                propertiesSheet.addRow(generateRowValues(instanceName, instance,[propertyName, row.data.systemPropertySettings[propertyName]]));
+                                propertiesSheet.addRow(generateRowValues(instanceName, instance,[propertyName, row.data.systemPropertySettings[propertyName]])).commit();
                             }
                         }
                     });
@@ -422,8 +459,10 @@ var writeWorkbook = (auditData) => {
                     customer.account.accountType, 
                     customer.account.primarySalesRep, 
                     customer.account.solutionConsultant, 
+                    customer.account.isAppEngineSubscriber,
                     customer.installedOn, 
-                    moment(customer.installedOn).format("YYYY-MM")]);
+                    moment(customer.installedOn).format("YYYY-MM"),
+                    customer.installedVersion.text]).commit();
             }
 
             console.log("Parsed settings");
@@ -481,7 +520,7 @@ var writeWorkbook = (auditData) => {
                     TEMPLATE_NAMES[app.templateId],
                     app.installedOn,
                     (formattedDate == "Invalid date" ? "" : formattedDate)
-                ]); 
+                ]).commit(); 
 
                 if(app.templateId && app.templateId.length) {
                     overviewData.apps.totalCreated++;
@@ -520,7 +559,7 @@ var writeWorkbook = (auditData) => {
                                 sheet.addRow(generateRowValues(instanceName, instance, [
                                     moment(month, 'MM/YYYY').format("YYYY-MM"),
                                     apps
-                                ]));
+                                ])).commit();
                             }
                         }
                     });
@@ -569,7 +608,7 @@ var writeWorkbook = (auditData) => {
                                     template.type,
                                     template.createdOn,
                                     moment(template.createdOn, 'YYYY-MM-DD').format("YYYY-MM")
-                                ]));
+                                ])).commit();
                             }
                         }
                     });
@@ -612,7 +651,7 @@ var writeWorkbook = (auditData) => {
                                     var count = parseInt(template.months[month]);
                                     overviewData.apps.totalCreated += count;
                                     var values = [templateName, templateId, true, moment(month, 'MM/YYYY').format("YYYY-MM"), count];
-                                    workSheet.addRow(generateRowValues(instanceName, instance, values));
+                                    workSheet.addRow(generateRowValues(instanceName, instance, values)).commit();
                                 }
                             }
                         }
@@ -626,7 +665,7 @@ var writeWorkbook = (auditData) => {
 
                                 for(var month in template.months) {
                                     var values = [templateName, templateId, false, moment(month, 'MM/YYYY').format("YYYY-MM"), parseInt(template.months[month])];
-                                    workSheet.addRow(generateRowValues(instanceName, instance, values));
+                                    workSheet.addRow(generateRowValues(instanceName, instance, values)).commit();
                                 }
                             }
                         }
@@ -676,7 +715,7 @@ var writeWorkbook = (auditData) => {
                                     template.scope,
                                     template.createdOn,
                                     moment(template.createdOn, 'YYYY-MM-DD').format("YYYY-MM")
-                                ]));
+                                ])).commit();
                             }
                         }
                     });
@@ -722,7 +761,7 @@ var writeWorkbook = (auditData) => {
                                             template.scope,
                                             artifact,
                                             template.contents[artifact]
-                                        ]));
+                                        ])).commit();
                                     }
                                 }                                
                             }
@@ -756,7 +795,7 @@ var writeWorkbook = (auditData) => {
                         if(row.data && row.data.appArtifacts) {
                             for(var artifactName in row.data.appArtifacts){
                                 var artifact = row.data.appArtifacts[artifactName];
-                                workSheet.addRow(generateRowValues(instanceName, instance, [artifactName, artifact.totalCount, artifact.apps]));
+                                workSheet.addRow(generateRowValues(instanceName, instance, [artifactName, artifact.totalCount, artifact.apps])).commit();
                             }
                         }
                     });
@@ -792,7 +831,7 @@ var writeWorkbook = (auditData) => {
                             var aesUsers = row.data.developerRoles.aesUsers;
                             var delegatedUsers = row.data.developerRoles.delegatedDevelopers;
 
-                            workSheet.addRow(generateRowValues(instanceName, instance, [aesUsers.total, aesUsers["30"], aesUsers["90"], delegatedUsers.total, delegatedUsers["30"], delegatedUsers["90"]]));
+                            workSheet.addRow(generateRowValues(instanceName, instance, [aesUsers.total, aesUsers["30"], aesUsers["90"], delegatedUsers.total, delegatedUsers["30"], delegatedUsers["90"]])).commit();
                         }
                     });
                 }
@@ -826,7 +865,7 @@ var writeWorkbook = (auditData) => {
                         audit.forEach((row) => {
 
                             if(!row.success && instanceName != "Instance Name" && instanceName != "u_instance_name") {
-                                workSheet.addRow(generateRowValues(instanceName, instance,[auditName, row.auditState, row.errorDescription]));
+                                workSheet.addRow(generateRowValues(instanceName, instance,[auditName, row.auditState, row.errorDescription])).commit();
                             }
 
                             if(auditName == "settings"){
@@ -856,23 +895,24 @@ var writeWorkbook = (auditData) => {
         // Now populate the Overview worksheet
         //
         (function(sheet){
-            sheet.addRow(["Last updated:", moment(overviewData.lastUpdated()).format("MMMM Do YYYY, h:mm:ss a")]);
-            sheet.addRow([]);
-            sheet.addRow(["No. of Instances Audited Successfully:", overviewData.instances.successful]);
-            sheet.addRow(["No. of Instances Excluded:", overviewData.instances.excluded]);
-            sheet.addRow(["No. of Instances with Errors:", overviewData.instances.errors]);
-            sheet.addRow([]);
-            sheet.addRow(["Total customers audited successfully:", Object.keys(overviewData.totalCustomers).length]);
-            sheet.addRow([]);
-            sheet.addRow(["Total AES installs (instances):", overviewData.installs.instances]);
-            sheet.addRow(["Total AES installs (customers):", Object.keys(overviewData.installs.customers).length]);
-            sheet.addRow([]);
-            sheet.addRow(["Total # of AES apps created:", overviewData.apps.totalCreated]);
-            sheet.addRow(["Total # of AES apps in production:", overviewData.apps.totalInProduction]);
+            sheet.addRow(["Last updated:", moment(overviewData.lastUpdated()).format("MMMM Do YYYY, h:mm:ss a")]).commit();
+            sheet.addRow([]).commit();
+            sheet.addRow(["No. of Instances Audited Successfully:", overviewData.instances.successful]).commit();
+            sheet.addRow(["No. of Instances Excluded:", overviewData.instances.excluded]).commit();
+            sheet.addRow(["No. of Instances with Errors:", overviewData.instances.errors]).commit();
+            sheet.addRow([]).commit();
+            sheet.addRow(["Total customers audited successfully:", Object.keys(overviewData.totalCustomers).length]).commit();
+            sheet.addRow([]).commit();
+            sheet.addRow(["Total AES installs (instances):", overviewData.installs.instances]).commit();
+            sheet.addRow(["Total AES installs (customers):", Object.keys(overviewData.installs.customers).length]).commit();
+            sheet.addRow([]).commit();
+            sheet.addRow(["Total # of AES apps created:", overviewData.apps.totalCreated]).commit();
+            sheet.addRow(["Total # of AES apps in production:", overviewData.apps.totalInProduction]).commit();
 
             //
             // Apply cell styling
             //
+            /*
             sheet.getCell('B2').font = { bold: true };
 
             for(var i = 1; i < 100;i++){
@@ -882,10 +922,11 @@ var writeWorkbook = (auditData) => {
             [2,4,5,6,8,10,11,13,14].forEach((n) => {
                 sheet.getCell('B' + n.toString()).numFmt = '#,##0';
             });
+            */
 
         })(overviewSheet);
 
-        wb.xlsx.writeFile(fileName).then(() => {
+        wb.commit().then(() => {
             console.log("Created file " + fileName);
             resolve();
         });
