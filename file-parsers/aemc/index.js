@@ -7,9 +7,13 @@ const moment = require("moment");
 var generateColumns = (values) => {
     var columns = [
         { header: 'Instance Name', width: 22 },
-        { header: 'Company', width: 16 },
-        { header: 'Account No.', width: 13 },
-        { header: 'Instance Version', width: 22 },
+        { header: 'Company', width: 42 },
+        { header: 'Account No.', width: 12 },
+        { header: 'Account Type', width: 17 },
+        { header: 'Primary Rep', width: 22 },
+        { header: 'Solution Consultant', width: 23 },
+        { header: 'App Engine Subscriber', width: 22 },
+        { header: 'Instance Version', width: 63 },
         { header: 'Instance Purpose', width: 16 },
     ];
 
@@ -19,10 +23,14 @@ var generateColumns = (values) => {
 var generateRowValues = (instanceName, instance, values) => {
     var rowValues = [];
 
-    if(instance)
-        rowValues = [instanceName, instance.customer, instance.accountNo, instance.version, instance.purpose];
-    else
-        rowValues = [instanceName,"","","",""];
+    if(instance && instance.account) {
+        var account = instance.account;
+        rowValues = [instanceName, account.accountName, account.accountNo, account.accountType, account.primarySalesRep, account.solutionConsultant, account.isAppEngineSubscriber, instance.version, instance.purpose];
+    }                
+    else {
+        rowValues = [instanceName,"","","","","","","",""];
+    }
+        
 
     return rowValues.concat(values);
 };
@@ -55,7 +63,7 @@ var processSummary = (wb, auditData) => {
         { header: 'Pipelines - Total', width: 20, alignment: { horizontal: 'right' } },
         { header: 'Environments - Total', width: 20, alignment: { horizontal: 'right' } }
     ]);
-    ws.autoFilter = { from: 'A1', to: 'O1' };
+    ws.autoFilter = { from: 'A1', to: 'V1' };
 
     auditData.forEach((row) => {
         if(row.data) {
@@ -66,10 +74,10 @@ var processSummary = (wb, auditData) => {
                 intakeCounts = 0;
 
             if(row.data.installationStatus && row.data.installationStatus.aemc) {
-                var installedOn = row.data.installationStatus.aemc.installedOn;
+                var installedOn = row.data.installationStatus.aemc.installedOn;                
 
                 if(installedOn && installedOn.length) {
-                    installedOn = moment(installedOn, 'MM/YYYY').format("YYYY-MM");
+                    installedOn = moment(installedOn, 'YYYY-MM-DD').format("YYYY-MM");
                 }
 
                 values.push(
@@ -135,6 +143,101 @@ var processSummary = (wb, auditData) => {
             }
 
             ws.addRow(generateRowValues(row.instanceName, row.instance, values)).commit();
+        }
+    });
+
+    ws.commit();
+};
+
+var processTasksByMonth = (wb, auditData) => {
+    var ws = wb.addWorksheet("Tasks by Month");
+
+    ws.columns = [
+        { header: 'Month', width: 20 },
+        { header: 'Deployment Tasks', width: 20, alignment: { horizontal: 'right' } },
+        { header: 'Collaboration Tasks', width: 20, alignment: { horizontal: 'right' } },
+        { header: 'App Intake Tasks', width: 20, alignment: { horizontal: 'right' } }
+    ];
+
+    var TASKS = {};
+    var getOrCreateMonth = (month) => {
+        if(TASKS[month] == undefined)
+            TASKS[month] = { deployment: 0, collaboration: 0, intake: 0 };
+
+        return TASKS[month];
+    }
+
+    auditData.forEach((row) => {
+        if(row.data && row.instance && row.instance.purpose != "Demonstration") {
+    
+            if(row.data.appIntakeRequests) {
+                for(var month in row.data.appIntakeRequests.months) {
+                    getOrCreateMonth(month).intake += row.data.appIntakeRequests.months[month];
+                }
+            } 
+    
+            if(row.data.deploymentRequests) {
+                for(var month in row.data.deploymentRequests) {
+                    getOrCreateMonth(month).deployment += row.data.deploymentRequests[month];
+                }
+            }
+    
+            if(row.data.collaborationRequests) {
+                for(var month in row.data.collaborationRequests) {
+                    getOrCreateMonth(month).collaboration += row.data.collaborationRequests[month];
+                }
+            }
+        }
+    });
+
+    for(var month in TASKS) {
+        ws.addRow([moment(month, 'MM/YYYY').format("YYYY-MM"), TASKS[month].deployment, TASKS[month].collaboration, TASKS[month].intake]).commit();
+    }
+
+    ws.commit();
+};
+
+var processCustomers = (wb, auditData) => {
+    var ws = wb.addWorksheet("Customers");
+
+    ws.columns = [
+        { header: 'Customer', width: 20 },
+        { header: 'Account No.', width: 20 },
+        { header: 'Account Type', width: 20 },
+        { header: 'Primary Rep', width: 20 },
+        { header: 'Solution Consultant', width: 20 },
+        { header: 'App Engine Subscriber', width: 22 },
+        { header: 'AEMC Installed On', width: 17 },
+        { header: 'AEMC Installed On YYYY-MM', width: 12 },
+        { header: 'AEMC Version', width: 17 },
+    ];
+    ws.autoFilter = { from: 'A1', to: 'I1' };
+
+    var CUSTOMERS = {};
+
+    auditData.forEach((row) => {
+        if(row.instance && row.instance.account && row.data && row.data.installationStatus && row.data.installationStatus.aemc) {
+            var aemc = row.data.installationStatus.aemc;
+            var instance = row.instance;
+            var account = instance.account;
+
+            if(aemc.installed === true) {
+                if(CUSTOMERS[account.accountNo] == undefined){                    
+                    CUSTOMERS[account.accountNo] = true;
+
+                    ws.addRow([
+                        account.accountName,
+                        account.accountNo,
+                        account.accountType,
+                        account.primarySalesRep,
+                        account.solutionConsultant,
+                        account.isAppEngineSubscriber,
+                        aemc.installedOn,
+                        moment(aemc.installedOn, 'YYYY-MM-DD').format("YYYY-MM"),
+                        aemc.version
+                    ]).commit();
+                }
+            }
         }
     });
 
@@ -300,6 +403,16 @@ var process = () => {
             // Summary Info
             //
             processSummary(wb, auditData);
+
+            //
+            // Customers
+            //
+            processCustomers(wb, auditData);
+
+            //
+            // Tasks by month
+            //
+            processTasksByMonth(wb, auditData);
 
             //
             // Deployments by Month
