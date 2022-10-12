@@ -1,0 +1,110 @@
+{
+    "installationDetails": {
+        "installed": true,
+        "licensed": true,
+        "licensedPlugin": true,
+        "licensedApp": true,
+        "buildName": "Quebec",
+        "buildTag": "glide-trackapptemplates-12-11-2020",
+        "installedOn": "2021-02-10 15:26:55"
+    },
+    "applicationUsage": {
+        "App Engine Studio": {
+            "2021-02": "20",
+            "2021-03": "8",
+            "2021-04": "4"
+        },
+        "Studio": {
+            "2021-02": "6",
+            "2021-03": "2",
+            "2021-04": "4"
+        },
+        "Table Builder": {
+            "2021-02": "10"
+        }
+    },
+    "systemPropertySettings": {
+        "sn_app_eng_studio.aes_admin_contact": null,
+        "sn_app_eng_studio.user_sync_queue_enabled": "true",
+        "sn_app_eng_studio.user_sync_enabled": "true",
+        "sn_app_eng_studio.illustration_supported_content_types": "image/svg+xml",
+        "sn_app_eng_studio.user_sync_email_notification": "true",
+        "sn_app_eng_studio.mobile_studio_access": "true",
+        "sn_app_eng_studio.delete_user_sync_queue_in_x_days": "30"
+    },
+    "pipelineCount": 1,
+    "guidedSetupStatus": {
+        "name": "Welcome to App Engine Studio Guided Setup​",
+        "status": "In progress",
+        "progress": "0",
+        "steps": [{
+            "name": "Review and set up tooling",
+            "status": "In progress",
+            "progress": "0",
+            "steps": [{
+                "name": "Review Service Catalog access settings",
+                "status": "In progress",
+                "progress": "0"
+            }, {
+                "name": "Review Mobile Studio access settings",
+                "status": "In progress",
+                "progress": "0"
+            }, {
+                "name": "Connect Spokes",
+                "status": "In progress",
+                "progress": "0"
+            }, {
+                "name": "Set up an instance scan cadence in Health Center",
+                "status": "In progress",
+                "progress": "0"
+            }, {
+                "name": "Review Flow Designer access settings",
+                "status": "In progress",
+                "progress": "0"
+            }]
+        }, {
+            "name": "Set up user access",
+            "status": "In progress",
+            "progress": "0",
+            "steps": [{
+                "name": "Create a catalog item for other users to request access to App Engine Studio",
+                "status": "In progress",
+                "progress": "0"
+            }, {
+                "name": "Grant access to other users",
+                "status": "In progress",
+                "progress": "0"
+            }, {
+                "name": "Grant access to your current developers",
+                "status": "In progress",
+                "progress": "0"
+            }, {
+                "name": "Set up admin email",
+                "status": "In progress",
+                "progress": "0"
+            }]
+        }, {
+            "name": "Configure environments",
+            "status": "In progress",
+            "progress": "0",
+            "steps": [{
+                "name": "Set up pipeline on production",
+                "status": "In progress",
+                "progress": "0"
+            }, {
+                "name": "Set up credentials on production",
+                "status": "In progress",
+                "progress": "0"
+            }, {
+                "name": "Set up environments on production",
+                "status": "In progress",
+                "progress": "0"
+            }, {
+                "name": "Set up credentials and pipelines for your test and development environments",
+                "status": "In progress",
+                "progress": "0"
+            }]
+        }]
+    },
+    "deploymentRequests": {}
+}
