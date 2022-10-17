@@ -1,0 +1,129 @@
+{
+    "currentLanguage":"en",
+    "artifactPackages":{
+       "oauth_entity":{
+          "pkg":"OAuth 2.0",
+          "lbl":"Oauth Entity"
+       },
+       "pa_dashboards_permissions":{
+          "pkg":"Responsive Dashboards",
+          "lbl":"Dashboard Permissions"
+       },
+       "sys_app_application":{
+          "pkg":"System (apps/system_app)",
+          "lbl":"Application Menu"
+       },
+       "sys_app_module":{
+          "pkg":"System (apps/system_app)",
+          "lbl":"Module"
+       },
+       "sys_choice_set":{
+          "pkg":"",
+          "lbl":"Choice Set"
+       },
+       "sys_db_object":{
+          "pkg":"",
+          "lbl":"Table"
+       },
+       "sys_dictionary":{
+          "pkg":"",
+          "lbl":"Dictionary Entry"
+       },
+       "sys_documentation":{
+          "pkg":"",
+          "lbl":"Field Label"
+       },
+       "sys_number":{
+          "pkg":"System (apps/system_number)",
+          "lbl":"Number"
+       },
+       "sys_portal_page":{
+          "pkg":"Home Plugin",
+          "lbl":"Portal Page"
+       },
+       "sys_properties":{
+          "pkg":"System (apps/system2)",
+          "lbl":"System Property"
+       },
+       "sys_properties_category":{
+          "pkg":"System (apps/system2)",
+          "lbl":"System Property Category"
+       },
+       "sys_properties_category_m2m":{
+          "pkg":"System (apps/system2)",
+          "lbl":"Category Property"
+       },
+       "sys_scope_privilege":{
+          "pkg":"Cross-scope App Privilege Enforcement",
+          "lbl":"Cross scope privilege"
+       },
+       "sys_script":{
+          "pkg":"System (apps/system1)",
+          "lbl":"Business Rule"
+       },
+       "sys_script_include":{
+          "pkg":"System (apps/system1)",
+          "lbl":"Script Include"
+       },
+       "sys_security_acl":{
+          "pkg":"Schema for contextual security",
+          "lbl":"Access Control"
+       },
+       "sys_security_acl_role":{
+          "pkg":"Schema for contextual security",
+          "lbl":"Access Roles"
+       },
+       "sys_ui_list":{
+          "pkg":"System (apps/system_ui)",
+          "lbl":"List"
+       },
+       "sys_ui_policy":{
+          "pkg":"UI Policy Rules",
+          "lbl":"UI Policy"
+       },
+       "sys_ui_policy_action":{
+          "pkg":"UI Policy Rules",
+          "lbl":"UI Policy Action"
+       },
+       "sys_ui_related_list":{
+          "pkg":"System (apps/system_ui)",
+          "lbl":"Related List"
+       },
+       "sys_ui_section":{
+          "pkg":"System (apps/system_ui)",
+          "lbl":"Form Section"
+       },
+       "sys_ws_definition":{
+          "pkg":"Scripted REST APIs",
+          "lbl":"Scripted REST API"
+       },
+       "sys_ws_header":{
+          "pkg":"Scripted REST APIs",
+          "lbl":"Scripted REST Header"
+       },
+       "sys_ws_header_map":{
+          "pkg":"Scripted REST APIs",
+          "lbl":"Scripted REST Header Association"
+       },
+       "sys_ws_operation":{
+          "pkg":"Scripted REST APIs",
+          "lbl":"Scripted REST Resource"
+       },
+       "sys_ws_query_parameter":{
+          "pkg":"Scripted REST APIs",
+          "lbl":"Scripted REST Query Parameter"
+       },
+       "sys_ws_query_parameter_map":{
+          "pkg":"Scripted REST APIs",
+          "lbl":"Scripted REST Query Parameter Association"
+       },
+       "sys_ws_version":{
+          "pkg":"Scripted REST APIs",
+          "lbl":"Scripted REST Version"
+       },
+       "ua_table_licensing_config":{
+          "pkg":"Subscription Management and Enforcement Framework",
+          "lbl":"Table Subscription Configuration"
+       }
+    }
+ }

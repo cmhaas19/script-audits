@@ -1,0 +1,210 @@
+{
+    "totalUpdateSets":3,
+    "totalArtifacts":254,
+    "updateSetArtifacts":{
+       "Custom Application":{
+          "totalUpdateSets":3,
+          "totalArtifacts":3
+       },
+       "Access Control":{
+          "totalUpdateSets":1,
+          "totalArtifacts":13
+       },
+       "Access Roles":{
+          "totalUpdateSets":1,
+          "totalArtifacts":13
+       },
+       "Answer":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Application Menu":{
+          "totalUpdateSets":2,
+          "totalArtifacts":2
+       },
+       "Catalog Item Category":{
+          "totalUpdateSets":1,
+          "totalArtifacts":6
+       },
+       "Catalog Items Catalog":{
+          "totalUpdateSets":1,
+          "totalArtifacts":5
+       },
+       "Catalog UI Policy":{
+          "totalUpdateSets":1,
+          "totalArtifacts":18
+       },
+       "Catalog UI Policy Action":{
+          "totalUpdateSets":1,
+          "totalArtifacts":18
+       },
+       "Category":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Choice list":{
+          "totalUpdateSets":1,
+          "totalArtifacts":2
+       },
+       "Column":{
+          "totalUpdateSets":1,
+          "totalArtifacts":11
+       },
+       "Connection & Credential Aliases":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Decision Table":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Dictionary":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Dictionary Entry Override":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Embedded Help Role Priority":{
+          "totalUpdateSets":1,
+          "totalArtifacts":23
+       },
+       "Environment":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Field Label":{
+          "totalUpdateSets":1,
+          "totalArtifacts":2
+       },
+       "Flow":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Flow Variables":{
+          "totalUpdateSets":1,
+          "totalArtifacts":10
+       },
+       "Form Layout":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Gauge":{
+          "totalUpdateSets":1,
+          "totalArtifacts":6
+       },
+       "Guided Setup Change Log":{
+          "totalUpdateSets":1,
+          "totalArtifacts":12
+       },
+       "Guided Setup Content Status":{
+          "totalUpdateSets":1,
+          "totalArtifacts":7
+       },
+       "Item":{
+          "totalUpdateSets":1,
+          "totalArtifacts":3
+       },
+       "Module":{
+          "totalUpdateSets":2,
+          "totalArtifacts":10
+       },
+       "Notification":{
+          "totalUpdateSets":1,
+          "totalArtifacts":11
+       },
+       "Number":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Package dependency":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Portal Page":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Question":{
+          "totalUpdateSets":1,
+          "totalArtifacts":9
+       },
+       "Report":{
+          "totalUpdateSets":1,
+          "totalArtifacts":6
+       },
+       "Role":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Section":{
+          "totalUpdateSets":1,
+          "totalArtifacts":5
+       },
+       "Service":{
+          "totalUpdateSets":1,
+          "totalArtifacts":2
+       },
+       "Service Category":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "System Property":{
+          "totalUpdateSets":2,
+          "totalArtifacts":4
+       },
+       "Table":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Table Subscription Configuration":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Variable":{
+          "totalUpdateSets":1,
+          "totalArtifacts":15
+       },
+       "Category Property":{
+          "totalUpdateSets":1,
+          "totalArtifacts":3
+       },
+       "Context Menu":{
+          "totalUpdateSets":1,
+          "totalArtifacts":2
+       },
+       "Images":{
+          "totalUpdateSets":1,
+          "totalArtifacts":2
+       },
+       "Macro":{
+          "totalUpdateSets":1,
+          "totalArtifacts":2
+       },
+       "Processor":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "Script Include":{
+          "totalUpdateSets":1,
+          "totalArtifacts":3
+       },
+       "Style Sheet":{
+          "totalUpdateSets":1,
+          "totalArtifacts":2
+       },
+       "System Property Category":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "UI Action":{
+          "totalUpdateSets":1,
+          "totalArtifacts":1
+       },
+       "UI Script":{
+          "totalUpdateSets":1,
+          "totalArtifacts":5
+       }
+    }
+ }
