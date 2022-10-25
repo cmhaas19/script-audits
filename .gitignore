@@ -1,6 +1,7 @@
 # audits
 *.csv
 *.xlsx
+aes.json
 
 # Logs
 logs

@@ -64,9 +64,10 @@ var loadAllFiles = (instances) => {
                     }
                 }
 
-                //console.log(combined);
-
-                resolve(combined);
+                fs.writeFile('aes.json', JSON.stringify(combined, null, 2), () => {
+                    console.log("Logged json to aes.json file");
+                    resolve(combined);
+                }); 
             });
 	});
 
@@ -182,7 +183,7 @@ var aggregateCustomApps = (auditData) => {
 */
 var writeWorkbook = (auditData) => {
     var promise = new Promise((resolve, reject) => {
-        //var wb = new ExcelJS.Workbook();
+
         var fileName = FILE_DIRECTORY + "/processed-results.xlsx";
         var wb = new ExcelJS.stream.xlsx.WorkbookWriter({
             filename: fileName
@@ -567,115 +568,9 @@ var writeWorkbook = (auditData) => {
             }
         })();
 
-        //
-        // Installed Templates
-        //
-        (function(){
+        
 
-            const workSheet = wb.addWorksheet('Templates - Installed');
-	
-			workSheet.columns = generateColumns([
-                { header: 'Template ID', width: 32 },
-				{ header: 'Template Name', width: 24 },	
-                { header: 'Active', width: 15 },
-                { header: 'Is App', width: 15 },
-                { header: 'Is Snapshot', width: 15 },
-                { header: 'Scope', width: 15 },
-                { header: 'Type', width: 15 },
-				{ header: 'Created On', width: 17 },
-                { header: 'Created On YYYY-MM', width: 28 },
-			]);
-            workSheet.autoFilter = { from: 'A1', to: 'P1' };
-
-            for(var instanceName in auditData){
-                var instance = auditData[instanceName];
-
-                if(instance.templatesInstalled) {
-                    instance.templatesInstalled.forEach(row => {
-                        if(row.data && row.data.installedTemplates) {
-                            var templates = row.data.installedTemplates;
-    
-                            for(var templateId in templates) {
-                                var template = templates[templateId];
-
-                                workSheet.addRow(generateRowValues(instanceName, instance, [
-                                    templateId,
-                                    template.name,
-                                    template.active,
-                                    template.isApp,
-                                    template.snapshot,
-                                    template.scope,
-                                    template.type,
-                                    template.createdOn,
-                                    moment(template.createdOn, 'YYYY-MM-DD').format("YYYY-MM")
-                                ])).commit();
-                            }
-                        }
-                    });
-                }
-            }
-
-            console.log("Parsed custom templates");
-
-        })();
-
-        //
-        // Templates Worksheet
-        //
-        (function(){
-
-            const workSheet = wb.addWorksheet('Templates - Usage');
-	
-			workSheet.columns = generateColumns([
-				{ header: 'Template Name', width: 24 },
-				{ header: 'Template ID', width: 32 },
-                { header: 'Is App Template', width: 15 },
-				{ header: 'Month', width: 17 },
-				{ header: 'Count', width: 11, alignment: { horizontal: 'right' } }
-			]);
-            workSheet.autoFilter = { from: 'A1', to: 'N1' };
-
-            for(var instanceName in auditData){
-                var instance = auditData[instanceName];
-
-                if(instance.templates) {
-                    instance.templates.forEach(row => {
-                        if(row.data && row.data.appTemplates) {
-                            var appTemplates = row.data.appTemplates;
-    
-                            for(var templateId in appTemplates) {
-                                var template = appTemplates[templateId];
-                                var templateName = TEMPLATE_NAMES[templateId];
-
-                                for(var month in template.months) {
-                                    var count = parseInt(template.months[month]);
-                                    overviewData.apps.totalCreated += count;
-                                    var values = [templateName, templateId, true, moment(month, 'MM/YYYY').format("YYYY-MM"), count];
-                                    workSheet.addRow(generateRowValues(instanceName, instance, values)).commit();
-                                }
-                            }
-                        }
-
-                        if(row.data && row.data.objectTemplates) {
-                            var objectTemplates = row.data.objectTemplates;
-    
-                            for(var templateId in objectTemplates) {
-                                var template = objectTemplates[templateId];
-                                var templateName = TEMPLATE_NAMES[templateId];
-
-                                for(var month in template.months) {
-                                    var values = [templateName, templateId, false, moment(month, 'MM/YYYY').format("YYYY-MM"), parseInt(template.months[month])];
-                                    workSheet.addRow(generateRowValues(instanceName, instance, values)).commit();
-                                }
-                            }
-                        }
-                    });
-                }
-            }
-
-            console.log("Parsed templates");
-
-        })();
+        var CUSTOM_TEMPLATE_IDs = {};
 
         //
         // Custom Templates Worksheet
@@ -705,7 +600,6 @@ var writeWorkbook = (auditData) => {
     
                             for(var templateId in templates) {
                                 var template = templates[templateId];
-                                //var templateType = TEMPLATE_TYPES[template.type];
 
                                 workSheet.addRow(generateRowValues(instanceName, instance, [
                                     templateId,
@@ -716,6 +610,8 @@ var writeWorkbook = (auditData) => {
                                     template.createdOn,
                                     moment(template.createdOn, 'YYYY-MM-DD').format("YYYY-MM")
                                 ])).commit();
+
+                                CUSTOM_TEMPLATE_IDs[templateId] = true;
                             }
                         }
                     });
@@ -771,6 +667,121 @@ var writeWorkbook = (auditData) => {
             }
 
             console.log("Parsed custom template artifacts");
+
+        })();
+
+        //
+        // Installed Templates
+        //
+        (function(){
+
+            const workSheet = wb.addWorksheet('Templates - Installed');
+	
+			workSheet.columns = generateColumns([
+                { header: 'Template ID', width: 32 },
+				{ header: 'Template Name', width: 24 },	
+                { header: 'Active', width: 15 },
+                { header: 'Is App Template', width: 15 },
+                { header: 'Is Custom Template', width: 15 },
+                { header: 'Is Snapshot', width: 15 },
+                { header: 'Scope', width: 15 },
+                { header: 'Type', width: 15 },
+				{ header: 'Created On', width: 17 },
+                { header: 'Created On YYYY-MM', width: 28 },
+			]);
+            workSheet.autoFilter = { from: 'A1', to: 'P1' };
+
+            for(var instanceName in auditData){
+                var instance = auditData[instanceName];
+
+                if(instance.templatesInstalled) {
+                    instance.templatesInstalled.forEach(row => {
+                        if(row.data && row.data.installedTemplates) {
+                            var templates = row.data.installedTemplates;
+    
+                            for(var templateId in templates) {
+                                var template = templates[templateId];
+
+                                workSheet.addRow(generateRowValues(instanceName, instance, [
+                                    templateId,
+                                    template.name,
+                                    template.active,
+                                    template.isApp,
+                                    (CUSTOM_TEMPLATE_IDs[templateId] != undefined),
+                                    template.snapshot,
+                                    template.scope,
+                                    template.type,
+                                    template.createdOn,
+                                    moment(template.createdOn, 'YYYY-MM-DD').format("YYYY-MM")
+                                ])).commit();
+                            }
+                        }
+                    });
+                }
+            }
+
+            console.log("Parsed custom templates");
+
+        })();
+
+        //
+        // Templates Worksheet
+        //
+        (function(){
+
+            const workSheet = wb.addWorksheet('Templates - Usage');
+	
+			workSheet.columns = generateColumns([
+				{ header: 'Template Name', width: 24 },
+				{ header: 'Template ID', width: 32 },
+                { header: 'Is App Template', width: 15 },
+                { header: 'Is Custom Template', width: 15 },
+				{ header: 'Month', width: 17 },
+				{ header: 'Count', width: 11, alignment: { horizontal: 'right' } }
+			]);
+            workSheet.autoFilter = { from: 'A1', to: 'N1' };
+
+            for(var instanceName in auditData){
+                var instance = auditData[instanceName];
+
+                if(instance.templates) {
+                    instance.templates.forEach(row => {
+                        if(row.data && row.data.appTemplates) {
+                            var appTemplates = row.data.appTemplates;
+    
+                            for(var templateId in appTemplates) {
+                                var template = appTemplates[templateId];
+                                var templateName = TEMPLATE_NAMES[templateId];
+
+                                for(var month in template.months) {
+                                    var count = parseInt(template.months[month]);
+                                    overviewData.apps.totalCreated += count;
+
+
+                                    var values = [templateName, templateId, true, (CUSTOM_TEMPLATE_IDs[templateId] != undefined), moment(month, 'MM/YYYY').format("YYYY-MM"), count];
+                                    workSheet.addRow(generateRowValues(instanceName, instance, values)).commit();
+                                }
+                            }
+                        }
+
+                        if(row.data && row.data.objectTemplates) {
+                            var objectTemplates = row.data.objectTemplates;
+    
+                            for(var templateId in objectTemplates) {
+                                var template = objectTemplates[templateId];
+                                var templateName = TEMPLATE_NAMES[templateId];
+
+                                for(var month in template.months) {
+                                    var values = [templateName, templateId, false, (CUSTOM_TEMPLATE_IDs[templateId] != undefined), moment(month, 'MM/YYYY').format("YYYY-MM"), parseInt(template.months[month])];
+                                    workSheet.addRow(generateRowValues(instanceName, instance, values)).commit();
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            console.log("Parsed templates");
 
         })();
 

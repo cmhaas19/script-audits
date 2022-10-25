@@ -192,6 +192,8 @@ var parseCsvFile = (fileName) => {
 	};
 
 	var promise = new Promise((resolve, reject) => {
+        console.log(`Starting to process file ${fileName}`);
+
 		fastCsv.parseFile(fileName).on("data", data => {
 			var row = {
 				instanceName: data[2],
@@ -214,7 +216,7 @@ var parseCsvFile = (fileName) => {
 
 		})
 		.on("end", rowCount => {
-            console.log("Parsed " + auditData.length + " rows from " + fileName);
+            console.log(`Parsed ${auditData.length} rows from ${fileName}`);
             resolve(auditData);
         });
 	});
