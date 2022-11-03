@@ -1,6 +1,6 @@
 
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const moment = require("moment");
 
@@ -36,7 +36,7 @@ var processCollaboration = () => {
 
         var fileName = path.join(__dirname, "collaboration.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var generalWs = wb.addWorksheet("General");
             var descriptorsWs = wb.addWorksheet("Descriptors");
             var permissionsWs = wb.addWorksheet("Descriptor + Permissions");

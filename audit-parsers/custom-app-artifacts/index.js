@@ -1,6 +1,6 @@
 
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const fastCsv = require("fast-csv");
 const moment = require("moment");
@@ -10,7 +10,7 @@ var loadPackages = () => {
     var fileName = path.join(__dirname, "packages.csv");
 
     var promise = new Promise((resolve, reject) => {
-        sharedData.parseCsvFile(fileName).then((auditData) => {
+        FileLoader.parseCsvFile(fileName).then((auditData) => {
             var packages = {};
     
             auditData.forEach((row) => {
@@ -39,7 +39,7 @@ var loadPackages = () => {
 
         console.log("Found " + Object.keys(packages).length + " packages");
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var scopes = {};
             var artifacts = {};
             

@@ -2,17 +2,15 @@ const path = require('path');
 const fastCsv = require("fast-csv");
 const EMPTY_PAYLOAD = "Empty Payload";
 const AUDIT_STATE_COMPLETED = "Completed";
+const CUSTOMER_ACCOUNTS_FILENAME = "files/all-customer-accounts.csv";
+const APP_ENGINE_ACCOUNTS_FILENAME = "files/app-engine-accounts.csv";
+const CUSTOMER_INSTANCES_FILENAME = "files/customer-instances.csv";
 
-var loadInstanceData = (instanceType) => {
+var loadInstanceData = () => {
 	var promise = new Promise((resolve, reject) => {
 
 		var instances = {};
-        var filePrefix = "customer";
-
-        if(instanceType)
-            filePrefix = instanceType;
-
-        var fileName = path.join(__dirname, filePrefix + '-instances.csv');
+        var fileName = path.join(__dirname, CUSTOMER_INSTANCES_FILENAME);
 
         fastCsv.parseFile(fileName)
             .on("data", data => {
@@ -41,7 +39,7 @@ var loadInstanceData = (instanceType) => {
 var loadAccountData = () => {
     var promise = new Promise((resolve, reject) => {
 		var accounts = {};
-        var fileName = path.join(__dirname, "all-customer-accounts.csv");
+        var fileName = path.join(__dirname, CUSTOMER_ACCOUNTS_FILENAME);
 
 		fastCsv.parseFile(fileName)
 			.on("data", data => {
@@ -75,7 +73,7 @@ var loadAccountData = () => {
 var loadAppEngineAccounts = (accounts) => {
 	var promise = new Promise((resolve, reject) => {
         var appEngineAccounts = 0;
-        var fileName = path.join(__dirname, "app-engine-accounts.csv");
+        var fileName = path.join(__dirname, APP_ENGINE_ACCOUNTS_FILENAME);
 
 		fastCsv.parseFile(fileName)
 			.on("data", data => {
@@ -217,28 +215,6 @@ var parseCsvFile = (fileName) => {
 		})
 		.on("end", rowCount => {
             console.log(`Parsed ${auditData.length} rows from ${fileName}`);
-            resolve(auditData);
-        });
-	});
-
-	return promise;
-};
-
-var loadFile = (instances) => {
-    var promise = new Promise((resolve, reject) => {        
-        parseCsvFile().then((auditData) => {
-            //
-            // Add the instance data
-            //
-            auditData.forEach((row) => {
-                var instanceName = row.instanceName,
-                    accountInfo = instances[instanceName];
-
-                if(accountInfo != undefined)
-                    row.accountInfo = accountInfo;
-                
-            });
-
             resolve(auditData);
         });
 	});

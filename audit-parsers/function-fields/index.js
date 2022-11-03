@@ -1,6 +1,6 @@
 
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 
 const OPERATIONS = [
@@ -25,7 +25,7 @@ const OPERATIONS = [
 
     var fileName = path.join(__dirname, "results.csv");
 
-    sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+    FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
         var wb = new ExcelJS.Workbook();
         var worksheet = wb.addWorksheet("Function fields");
         var resultsFileName = "function-field-usage.xlsx";

@@ -1,6 +1,6 @@
 
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const moment = require("moment");
 const Data = require('./common/DataSet.js');
 const common = require('./common/common.js');
@@ -73,7 +73,7 @@ var process = (distinct) => {
 
         var fileName = path.join(__dirname, "./audits/workspaces.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var general = new Data.DataTable("Legacy Workspaces");
             var modules = new Data.DataTable("Legacy Workspace Modules");
             var lists = new Data.DataTable("Legacy Workspace Lists");

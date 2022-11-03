@@ -1,6 +1,6 @@
 
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const moment = require("moment");
 
@@ -96,7 +96,7 @@ var processTemplateScopes = () => {
 
         var fileName = path.join(__dirname, "audits/now-experiences-from-templates.csv");
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var scopes = {};
 
             auditData.forEach((row) => {
@@ -125,7 +125,7 @@ var processNowExperiences = (AES_SCOPES) => {
 
         var fileName = path.join(__dirname, "audits/now-experiences.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var generalWs = wb.addWorksheet("Now Experiences");
             var routesWs = wb.addWorksheet("Now Experiences - Routes");
     
@@ -270,7 +270,7 @@ var processCustomComponents = () => {
 
         var fileName = path.join(__dirname, "audits/seismic-components.csv");
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var tables = ["sys_ux_macroponent","sys_ux_lib_component","sys_uib_toolbox_component","sys_ux_lib_source_script"];
 
             tables.forEach((table) => {

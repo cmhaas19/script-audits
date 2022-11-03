@@ -1,6 +1,6 @@
 
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const moment = require("moment");
 
@@ -36,7 +36,7 @@ var processTables = () => {
 
         var fileName = path.join(__dirname, "audits", "tables.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var tableWs = wb.addWorksheet("Tables");
             var fieldsWs = wb.addWorksheet("Tables - Field Types");
             var referenceWs = wb.addWorksheet("Tables - Reference Tables");
@@ -202,7 +202,7 @@ var processBusinessRules = () => {
 
         var fileName = path.join(__dirname, "audits", "business-rules.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var worksheet = wb.addWorksheet("Business Rules");
     
             worksheet.columns = generateColumns([
@@ -277,7 +277,7 @@ var processDataSources = () => {
 
         var fileName = path.join(__dirname, "audits", "data-sources.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var worksheet = wb.addWorksheet("Data Sources");
     
             worksheet.columns = generateColumns([
@@ -338,7 +338,7 @@ var processRoles = () => {
 
         var fileName = path.join(__dirname, "audits", "roles.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var worksheet = wb.addWorksheet("Roles");
     
             worksheet.columns = generateColumns([
@@ -394,7 +394,7 @@ var processReports = () => {
 
         var fileName = path.join(__dirname, "audits", "reports.csv");    
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var worksheet = wb.addWorksheet("Reports");
     
             worksheet.columns = generateColumns([
@@ -461,7 +461,7 @@ var processEventRegistry = () => {
 
         var fileName = path.join(__dirname, "audits", "event-registry.csv");    
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var worksheet = wb.addWorksheet("Event Registry");
     
             worksheet.columns = generateColumns([
@@ -520,7 +520,7 @@ var processScheduledScripts = () => {
 
         var fileName = path.join(__dirname, "audits", "scheduled-scripts.csv");    
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoadrer.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var worksheet = wb.addWorksheet("Scheduled Scripts");
     
             worksheet.columns = generateColumns([
@@ -589,7 +589,7 @@ var processSystemProperties = () => {
 
         var fileName = path.join(__dirname, "audits", "system-properties.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var worksheet = wb.addWorksheet("System Properties");
     
             worksheet.columns = generateColumns([
@@ -648,7 +648,7 @@ var processTaskFormFields = () => {
 
         var fileName = path.join(__dirname, "audits", "tables-from-task.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var worksheet = wb.addWorksheet("Task Form Fields");
     
             worksheet.columns = [

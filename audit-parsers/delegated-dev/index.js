@@ -1,7 +1,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const moment = require("moment");
 
@@ -71,7 +71,7 @@ var process = () => {
 
         var fileName = path.join(__dirname, "results.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
 
             //
             // Scope/User/Permission

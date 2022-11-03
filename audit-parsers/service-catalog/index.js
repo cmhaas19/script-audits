@@ -1,6 +1,6 @@
 
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const moment = require("moment");
 
@@ -44,7 +44,7 @@ var processRecordProducers = () => {
 
         var fileName = path.join(__dirname, "record-producers.csv");   
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
 
             (function(){
                 var ws = wb.addWorksheet("General");
@@ -157,7 +157,7 @@ var processServices = () => {
 
         var fileName = path.join(__dirname, "services.csv");
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
 
             (function(){
                 var ws = wb.addWorksheet("General");

@@ -1,5 +1,5 @@
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const moment = require("moment");
 const Data = require('./common/DataSet.js');
 const common = require('./common/common.js');
@@ -27,7 +27,7 @@ var parsePortals = (distinct) => {
 
         var fileName = path.join(__dirname, "./audits/service-portals.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var portals = new Data.DataTable("Portals");
             var distinctPortals = {};
             var isDistinct = (distinct === true);

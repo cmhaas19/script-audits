@@ -1,6 +1,6 @@
 
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const moment = require("moment");
 
@@ -44,7 +44,7 @@ var processInstanceScanChecks = () => {
 
         var fileName = path.join(__dirname, "results.csv");   
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
 
             (function(){
                 var ws = wb.addWorksheet("General");

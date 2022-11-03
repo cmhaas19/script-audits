@@ -1,6 +1,6 @@
 
 const path = require('path');
-const sharedData = require('../../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const moment = require("moment");
 
@@ -51,7 +51,7 @@ var processFlowTriggers = () => {
 
         var fileName = path.join(__dirname, "flows.csv");       
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var generalWs = wb.addWorksheet("General");
     
             generalWs.columns = generateColumns([

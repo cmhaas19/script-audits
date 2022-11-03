@@ -1,5 +1,5 @@
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const moment = require("moment");
 const Data = require('./common/DataSet.js');
 const common = require('./common/common.js');
@@ -56,7 +56,7 @@ var parseNowExperiences = (distinct) => {
             'App Route',
         ];
 
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var dataSet = new Data.DataSet();
             var experiences = new Data.DataTable("Experiences");
             var routes = new Data.DataTable("Experience Routes");

@@ -1,39 +1,8 @@
 
 const path = require('path');
-const sharedData = require('../shared/shared');
-const ExcelJS = require('exceljs');
+const Audit = require('../common/AuditWorkbook.js');
+const FileLoader = require('../common/FileLoader.js');
 const moment = require("moment");
-
-var generateColumns = (values) => {
-    var columns = [
-        { header: 'Instance Name', width: 22 },
-        { header: 'Company', width: 42 },
-        { header: 'Account No.', width: 12 },
-        { header: 'Account Type', width: 17 },
-        { header: 'Primary Rep', width: 22 },
-        { header: 'Solution Consultant', width: 23 },
-        { header: 'App Engine Subscriber', width: 22 },
-        { header: 'Instance Version', width: 63 },
-        { header: 'Instance Purpose', width: 16 },
-    ];
-
-    return columns.concat(values);
-};
-
-var generateRowValues = (instanceName, instance, values) => {
-    var rowValues = [];
-
-    if(instance && instance.account) {
-        var account = instance.account;
-        rowValues = [instanceName, account.accountName, account.accountNo, account.accountType, account.primarySalesRep, account.solutionConsultant, account.isAppEngineSubscriber, instance.version, instance.purpose];
-    }                
-    else {
-        rowValues = [instanceName,"","","","","","","",""];
-    }
-        
-
-    return rowValues.concat(values);
-};
 
 var getGuidedSetupStatus = (data, propName) => {
     var status = 0;
@@ -48,7 +17,7 @@ var getGuidedSetupStatus = (data, propName) => {
 var processSummary = (wb, auditData) => {
     var ws = wb.addWorksheet("Summary");
 
-    ws.columns = generateColumns([
+    ws.setStandardColumns([
         { header: 'AEMC - Installed', width: 20 },
         { header: 'AEMC - Installed On', width: 20 },
         { header: 'AEMC - Version', width: 20 },
@@ -63,15 +32,25 @@ var processSummary = (wb, auditData) => {
         { header: 'Pipelines - Total', width: 20, alignment: { horizontal: 'right' } },
         { header: 'Environments - Total', width: 20, alignment: { horizontal: 'right' } }
     ]);
-    ws.autoFilter = { from: 'A1', to: 'V1' };
 
     auditData.forEach((row) => {
         if(row.data) {
 
-            var values = [];
-            var deploymentCounts = 0,
-                collabCounts = 0,
-                intakeCounts = 0;
+            var result = {
+                installed: false,
+                installedOn: "",
+                version: "",
+                aemcGuidedSetup: getGuidedSetupStatus(row.data, "aemcGuidedSetup"),
+                appIntakeGuidedSetup: getGuidedSetupStatus(row.data, "appIntakeGuidedSetup"),
+                pipelineGuidedSetup: getGuidedSetupStatus(row.data, "pipelineGuidedSetup"),
+                appIntakeInstalled: false,
+                appIntakeActive: false,
+                appIntakeCounts: 0,
+                deploymentCounts: 0,
+                collaborationRequests: 0,
+                pipelineCount: 0,
+                environmentCount: 0
+            };
 
             if(row.data.installationStatus && row.data.installationStatus.aemc) {
                 var installedOn = row.data.installationStatus.aemc.installedOn;                
@@ -80,54 +59,38 @@ var processSummary = (wb, auditData) => {
                     installedOn = moment(installedOn, 'YYYY-MM-DD').format("YYYY-MM");
                 }
 
-                values.push(
-                    row.data.installationStatus.aemc.installed, 
-                    installedOn,
-                    row.data.installationStatus.aemc.version);
+                result.installed = row.data.installationStatus.aemc.installed;
+                result.installedOn = installedOn;
+                result.version = row.data.installationStatus.aemc.version;
 
-            } else {
-                values.push("","","");
             }
-
-            values.push(
-                getGuidedSetupStatus(row.data, "aemcGuidedSetup"),
-                getGuidedSetupStatus(row.data, "appIntakeGuidedSetup"),
-                getGuidedSetupStatus(row.data, "pipelineGuidedSetup"));
     
             if(row.data.appIntakeRequests) {
                 for(var month in row.data.appIntakeRequests.months) {
-                    intakeCounts += row.data.appIntakeRequests.months[month];
+                    result.appIntakeCounts += row.data.appIntakeRequests.months[month];
                 }
 
-                values.push(
-                    row.data.appIntakeRequests.installed,
-                    row.data.appIntakeRequests.active,
-                    intakeCounts);
-
-            } else {
-                values.push("","",0);
+                result.appIntakeInstalled = row.data.appIntakeRequests.installed;
+                result.appIntakeInstalled = row.data.appIntakeRequests.active;
             }
     
             if(row.data.deploymentRequests) {
                 for(var month in row.data.deploymentRequests) {
-                    deploymentCounts += row.data.deploymentRequests[month];
+                    result.deploymentCounts += row.data.deploymentRequests[month];
                 }
             }
     
             if(row.data.collaborationRequests) {
                 for(var month in row.data.collaborationRequests) {
-                    collabCounts += row.data.collaborationRequests[month];
+                    result.collaborationRequests += row.data.collaborationRequests[month];
                 }
             }
     
-            values.push(deploymentCounts, collabCounts);
-    
             if(row.data.pipelineConfigurations) {
                 var environments = {};
-                var pipelines = 0;
     
                 for(var id in row.data.pipelineConfigurations) {
-                    pipelines++;
+                    result.pipelineCount++;
     
                     if(row.data.pipelineConfigurations[id].environments) {
                         row.data.pipelineConfigurations[id].environments.forEach((env) => {
@@ -136,28 +99,23 @@ var processSummary = (wb, auditData) => {
                     }
                 }
 
-                values.push(pipelines, Object.keys(environments).length);
-
-            } else {
-                values.push(0,0);
+                result.environmentCount = Object.keys(environments).length;
             }
 
-            ws.addRow(generateRowValues(row.instanceName, row.instance, values)).commit();
+            ws.addStandardRow(row.instanceName, row.instance, result);
         }
     });
-
-    ws.commit();
 };
 
 var processTasksByMonth = (wb, auditData) => {
     var ws = wb.addWorksheet("Tasks by Month");
 
-    ws.columns = [
+    ws.setColumns([
         { header: 'Month', width: 20 },
         { header: 'Deployment Tasks', width: 20, alignment: { horizontal: 'right' } },
         { header: 'Collaboration Tasks', width: 20, alignment: { horizontal: 'right' } },
         { header: 'App Intake Tasks', width: 20, alignment: { horizontal: 'right' } }
-    ];
+    ]);
 
     var TASKS = {};
     var getOrCreateMonth = (month) => {
@@ -191,16 +149,19 @@ var processTasksByMonth = (wb, auditData) => {
     });
 
     for(var month in TASKS) {
-        ws.addRow([moment(month, 'MM/YYYY').format("YYYY-MM"), TASKS[month].deployment, TASKS[month].collaboration, TASKS[month].intake]).commit();
+        ws.addRow({
+            month: moment(month, 'MM/YYYY').format("YYYY-MM"),
+            deploymentCounts: TASKS[month].deployment,
+            collaborationCounts: TASKS[month].collaboration,
+            intakeCounts: TASKS[month].intake
+        });
     }
-
-    ws.commit();
 };
 
 var processCustomers = (wb, auditData) => {
     var ws = wb.addWorksheet("Customers");
 
-    ws.columns = [
+    ws.setColumns([
         { header: 'Customer', width: 20 },
         { header: 'Account No.', width: 20 },
         { header: 'Account Type', width: 20 },
@@ -210,8 +171,7 @@ var processCustomers = (wb, auditData) => {
         { header: 'AEMC Installed On', width: 17 },
         { header: 'AEMC Installed On YYYY-MM', width: 12 },
         { header: 'AEMC Version', width: 17 },
-    ];
-    ws.autoFilter = { from: 'A1', to: 'I1' };
+    ]);
 
     var CUSTOMERS = {};
 
@@ -225,95 +185,87 @@ var processCustomers = (wb, auditData) => {
                 if(CUSTOMERS[account.accountNo] == undefined){                    
                     CUSTOMERS[account.accountNo] = true;
 
-                    ws.addRow([
-                        account.accountName,
-                        account.accountNo,
-                        account.accountType,
-                        account.primarySalesRep,
-                        account.solutionConsultant,
-                        account.isAppEngineSubscriber,
-                        aemc.installedOn,
-                        moment(aemc.installedOn, 'YYYY-MM-DD').format("YYYY-MM"),
-                        aemc.version
-                    ]).commit();
+                    ws.addRow({
+                        accountName: account.accountName,
+                        accountNo: account.accountNo,
+                        accountType: account.accountType,
+                        primarySalesRep: account.primarySalesRep,
+                        solutionConsultant: account.solutionConsultant,
+                        isAppEngineSubscriber: account.isAppEngineSubscriber,
+                        installedOn: aemc.installedOn,
+                        installedOnYearMonth: moment(aemc.installedOn, 'YYYY-MM-DD').format("YYYY-MM"),
+                        version: aemc.version
+                    });
                 }
             }
         }
     });
-
-    ws.commit();
 };
 
 var processDeploymentCounts = (wb, auditData) => {
     var ws = wb.addWorksheet("Deployment Requests");
 
-    ws.columns = generateColumns([
+    ws.setStandardColumns([
         { header: 'Month', width: 20 },
         { header: 'Total', width: 20, alignment: { horizontal: 'right' } }
     ]);
-    ws.autoFilter = { from: 'A1', to: 'G1' };
 
     auditData.forEach((row) => {
         if(row.data && row.data.deploymentRequests) {
             for(var month in row.data.deploymentRequests) {
-                ws.addRow(generateRowValues(row.instanceName, row.instance, [
-                    moment(month, 'MM/YYYY').format("YYYY-MM"),
-                    row.data.deploymentRequests[month]])).commit();
+                ws.addStandardRow(row.instanceName, row.instance, {
+                    month: moment(month, 'MM/YYYY').format("YYYY-MM"),
+                    count: row.data.deploymentRequests[month]
+                });
             }
         }
     });
-
-    ws.commit();
 };
 
 var processCollaborationCounts = (wb, auditData) => {
     var ws = wb.addWorksheet("Collaboration Requests");
 
-    ws.columns = generateColumns([
+    ws.setStandardColumns([
         { header: 'Month', width: 20 },
         { header: 'Total', width: 20, alignment: { horizontal: 'right' } }
     ]);
-    ws.autoFilter = { from: 'A1', to: 'G1' };
 
     auditData.forEach((row) => {
         if(row.data && row.data.collaborationRequests) {
             for(var month in row.data.collaborationRequests) {
-                ws.addRow(generateRowValues(row.instanceName, row.instance, [
-                    moment(month, 'MM/YYYY').format("YYYY-MM"),
-                    row.data.collaborationRequests[month]])).commit();
+                ws.addStandardRow(row.instanceName, row.instance, {
+                    month: moment(month, 'MM/YYYY').format("YYYY-MM"),
+                    count: row.data.collaborationRequests[month]
+                });
             }
         }
     });
-
-    ws.commit();
 };
 
 var processIntakeCounts = (wb, auditData) => {
     var ws = wb.addWorksheet("App Intake Requests");
 
-    ws.columns = generateColumns([
+    ws.setStandardColumns([
         { header: 'Month', width: 20 },
         { header: 'Total', width: 20, alignment: { horizontal: 'right' } }
     ]);
-    ws.autoFilter = { from: 'A1', to: 'G1' };
 
     auditData.forEach((row) => {
         if(row.data && row.data.appIntakeRequests && row.data.appIntakeRequests.months) {
             for(var month in row.data.appIntakeRequests.months) {
-                ws.addRow(generateRowValues(row.instanceName, row.instance, [
-                    moment(month, 'MM/YYYY').format("YYYY-MM"),
-                    row.data.appIntakeRequests.months[month]])).commit();
+                ws.addStandardRow(row.instanceName, row.instance, {
+                    month: moment(month, 'MM/YYYY').format("YYYY-MM"),
+                    count: row.data.appIntakeRequests[month]
+                });
             }
         }
     });
-
-    ws.commit();
 };
 
 var processPipelines = (wb, auditData) => {
     var ws = wb.addWorksheet("Pipeline Configurations");
 
-    ws.columns = generateColumns([
+    ws.setStandardColumns([
         { header: 'Pipeline ID', width: 20 },
         { header: 'Pipeline Name', width: 20 },
         { header: 'Pipeline Active', width: 20 },
@@ -324,7 +276,6 @@ var processPipelines = (wb, auditData) => {
         { header: 'Source Environment Name', width: 20 },
         { header: 'Total Environments', width: 20, alignment: { horizontal: 'right' } }
     ]);
-    ws.autoFilter = { from: 'A1', to: 'N1' };
 
     auditData.forEach((row) => {
         if(row.data && row.data.pipelineConfigurations) {
@@ -335,27 +286,26 @@ var processPipelines = (wb, auditData) => {
                 if(row.data.pipelineConfigurations[configId].environments)
                     environments = row.data.pipelineConfigurations[configId].environments.length;
 
-                ws.addRow(generateRowValues(row.instanceName, row.instance, [
-                    configId,
-                    config.name, 
-                    config.active, 
-                    config.createdOn, 
-                    config.type.id, 
-                    config.type.name, 
-                    config.sourceEnvironment.id, 
-                    config.sourceEnvironment.name,
-                    environments])).commit();
+                ws.addStandardRow(row.instanceName, row.instance, {
+                    configId: configId,
+                    name: config.name, 
+                    active: config.active, 
+                    createdOn: config.createdOn, 
+                    typeId: config.type.id, 
+                    typeName: config.type.name, 
+                    sourceEnvironmentId: config.sourceEnvironment.id, 
+                    sourceEnvironmentName: config.sourceEnvironment.name,
+                    environments
+                });
             }
         }
     });
-    
-    ws.commit();
 };
 
 var processPipelineEnvironments = (wb, auditData) => {
     var ws = wb.addWorksheet("Pipeline Environments");
 
-    ws.columns = generateColumns([
+    ws.setStandardColumns([
         { header: 'Environment ID', width: 20 },
         { header: 'Environment Name', width: 20 },
         { header: 'Instance ID', width: 20 },
@@ -363,7 +313,6 @@ var processPipelineEnvironments = (wb, auditData) => {
         { header: 'Is Controller', width: 20 },
         { header: 'Order', width: 20, alignment: { horizontal: 'right' } }
     ]);
-    ws.autoFilter = { from: 'A1', to: 'K1' };
 
     auditData.forEach((row) => {
         if(row.data && row.data.pipelineConfigurations) {
@@ -372,86 +321,47 @@ var processPipelineEnvironments = (wb, auditData) => {
 
                 if(config.environments && config.environments.length) {
                     config.environments.forEach(env => {
-                        ws.addRow(generateRowValues(row.instanceName, row.instance, [                                        
-                            env.environment.id,
-                            env.environment.name,
-                            env.environment.instanceId,
-                            env.environment.instanceUrl,
-                            env.environment.isController,
-                            parseInt(env.order)])).commit();
+                        ws.addStandardRow(row.instanceName, row.instance, {                                 
+                            id: env.environment.id,
+                            name: env.environment.name,
+                            instanceId: env.environment.instanceId,
+                            instanceUrl: env.environment.instanceUrl,
+                            isController: env.environment.isController,
+                            order: parseInt(env.order)
+                        });
                     });
                 }                            
             }
         }
     });
-
-    ws.commit();
-};
-
-var process = () => {
-    var promise = new Promise((resolve, reject) => {
-
-        var wb = new ExcelJS.stream.xlsx.WorkbookWriter({
-            filename: "aemc-audit.xlsx"
-        });
-
-        var fileName = path.join(__dirname, "settings.csv");       
-
-        sharedData.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
-
-            //
-            // Summary Info
-            //
-            processSummary(wb, auditData);
-
-            //
-            // Customers
-            //
-            processCustomers(wb, auditData);
-
-            //
-            // Tasks by month
-            //
-            processTasksByMonth(wb, auditData);
-
-            //
-            // Deployments by Month
-            //
-            processDeploymentCounts(wb, auditData);
-
-            //
-            // Collaboration Requests by Month
-            //
-            processCollaborationCounts(wb, auditData);
-
-            //
-            // App Intake by Month
-            //
-            processIntakeCounts(wb, auditData);
-
-            //
-            // Pipeline Configurations
-            //
-            processPipelines(wb, auditData);
-
-            //
-            // Pipeline Environments
-            //
-            processPipelineEnvironments(wb, auditData);
-            
-            wb.commit().then(() => {
-                resolve();
-            });
-        });
-
-    });
-
-    return promise;
 };
 
 (function(){
 
-    process()
-        .then(() => { console.log("Done") });
+    var fileName = path.join(__dirname, "settings.csv");       
+
+    FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+
+        var wb = new Audit.AuditWorkbook("aemc-audit.xlsx");
+
+        processSummary(wb, auditData);
+
+        processCustomers(wb, auditData);
+
+        processTasksByMonth(wb, auditData);
+
+        processDeploymentCounts(wb, auditData);
+
+        processCollaborationCounts(wb, auditData);
+
+        processIntakeCounts(wb, auditData);
+
+        processPipelines(wb, auditData);
+
+        processPipelineEnvironments(wb, auditData);
+        
+        wb.commit().then(() => console.log("Finished!"));
+
+    });
 
 })();

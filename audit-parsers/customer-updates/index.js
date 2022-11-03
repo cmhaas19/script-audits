@@ -1,5 +1,5 @@
 const path = require('path');
-const sharedData = require('../shared/shared');
+const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const fs = require('fs');
 const fastCsv = require("fast-csv");
@@ -39,12 +39,12 @@ var generateRowValues = (instanceName, instance, values) => {
 
 var loadAllFiles = () => {
     return Promise.all([ 
-        sharedData.parseCsvFile(path.join(__dirname, "results-r1.csv")),
-        sharedData.parseCsvFile(path.join(__dirname, "results-r2.csv")),
-        sharedData.parseCsvFile(path.join(__dirname, "results-r3.csv")),
-        sharedData.parseCsvFile(path.join(__dirname, "results-r4.csv")),
-        sharedData.parseCsvFile(path.join(__dirname, "results-r5.csv")),
-        sharedData.parseCsvFile(path.join(__dirname, "results-r6.csv"))
+        FileLoader.parseCsvFile(path.join(__dirname, "results-r1.csv")),
+        FileLoader.parseCsvFile(path.join(__dirname, "results-r2.csv")),
+        FileLoader.parseCsvFile(path.join(__dirname, "results-r3.csv")),
+        FileLoader.parseCsvFile(path.join(__dirname, "results-r4.csv")),
+        FileLoader.parseCsvFile(path.join(__dirname, "results-r5.csv")),
+        FileLoader.parseCsvFile(path.join(__dirname, "results-r6.csv"))
 
     ]);
 };
@@ -73,7 +73,7 @@ var loadData = () => {
         //
         // Load instances & accounts once
         //
-        sharedData.loadInstancesAndAccounts().then((instances) => {
+        FileLoader.loadInstancesAndAccounts().then((instances) => {
             //
             // Load each result file
             //
