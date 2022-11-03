@@ -15,9 +15,11 @@ var getCustomTables = function() {
         sf_state_flow: true,
         sys_auth_profile: true,
         sys_dictionary: true,
+        sys_choice: true,
         sys_filter: true,
         sys_hub_action_type_base: true,
         sys_import_set_row: true,
+        sys_portal_page: true,
         sys_report_import_table_parent: true,
         sys_transform_script: true,
         sys_transform_map: true,
@@ -47,6 +49,7 @@ var getCustomTables = function() {
     //
     (function(){
         var gr = new GlideRecord("sys_table_rotation_schedule");
+        gr.addQuery('name.name', 'NSAMEAS', 'table_name');
         gr.setWorkflow(false);
         gr.query();
 
@@ -75,12 +78,13 @@ var getCustomTables = function() {
     // Now get custom tables
     //
     (function(){
-        var query = "nameSTARTSWITHx_";// + gs.getProperty("glide.appcreator.company.code");
+        var query = "nameSTARTSWITHx_" + gs.getProperty("glide.appcreator.company.code");
         query += "^ORnameSTARTSWITHu_";
         query += "^scriptable_table=false^ORscriptable_tableISEMPTY";
         query += "^nameNOT LIKEar_%";
         query += "^nameNOT IN" + Object.keys(excludedTables).join(",");
         query += "^super_class.nameNOT IN" + Object.keys(excludedParentTables).join(",");
+        query += "^ORsuper_classISEMPTY";
 
         var gr = new GlideRecord("sys_db_object");
         gr.addEncodedQuery(query);
@@ -90,26 +94,80 @@ var getCustomTables = function() {
         while(gr.next()) {
             var tableName = gr.getValue("name");
             var tableHierarchy = new TableUtils(tableName);
+            
+            customTables[tableName] = {};
 
-            var table = {
-                path: j2js(tableHierarchy.getHierarchy()).slice(1)
-            };
+            var path = j2js(tableHierarchy.getHierarchy()).slice(1);
 
-            customTables[tableName] = table;                
+            if(path.length > 0)
+                customTables[tableName].path = path;
         }
 
     })();
 
-    return customTables;
+    //
+    // Get reference fields of these custom tables
+    //
+    (function(){
+        var gr = new GlideRecord("sys_dictionary");
+        gr.setWorkflow(false);
+        gr.addEncodedQuery("internal_type=reference^nameIN" + Object.keys(customTables).join(","));
+        gr.query();
+
+        while(gr.next()) {
+            var tableName = gr.getValue("name");
+            var referencedTableName = gr.getValue("reference");            
+            var customTable = customTables[tableName];
+
+            if(customTable.refs == undefined)
+                customTable.refs = {};
+
+            if(customTable.refs[referencedTableName] == undefined)
+                customTable.refs[referencedTableName] = 0;
+
+            customTable.refs[referencedTableName]++;            
+        }
+
+    })();
+
+    //
+    // Get tables that reference any of the custom tables
+    //
+    (function(){
+        var gr = new GlideRecord("sys_dictionary");
+        gr.setWorkflow(false);
+        gr.addEncodedQuery("nameNOT LIKEvar__^referenceIN" + Object.keys(customTables).join(","));
+        gr.query();
+
+        while(gr.next()) {
+            var tableName = gr.getValue("name");
+            var referencedTableName = gr.getValue("reference");
+            var customTable = customTables[referencedTableName];
+
+            if(customTable.refsBy == undefined)
+                customTable.refsBy = {};
+
+            if(customTable.refsBy[tableName] == undefined)
+                customTable.refsBy[tableName] = 0;
+
+            customTable.refsBy[tableName]++;            
+        }
+
+    })();
+
+    return {
+        companyCode: gs.getProperty("glide.appcreator.company.code"),
+        customTables: customTables,
+        customTableCount: Object.keys(customTables).length,
+        excludedCount: Object.keys(excludedTables).length,
+        parentExcludedCount: Object.keys(excludedParentTables).length
+    };
 };
 
 
 (function(){
 
-	var auditResults = {
-        companyCode: gs.getProperty("glide.appcreator.company.code"),
-		customTables: getCustomTables()
-	};
+	var auditResults = getCustomTables();
 
 	gs.print(JSON.stringify(auditResults));
 
