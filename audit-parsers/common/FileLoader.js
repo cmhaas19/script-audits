@@ -48,12 +48,12 @@ var loadAccountData = () => {
 				accounts[accountNo] = {
 					accountName: data[1],
                     accountNo: accountNo,
-                    primarySalesRep: data[2],
-                    solutionConsultant: data[3],
-                    city: data[5],
-                    country: data[6],
-                    totalACV: data[10],
-                    accountType: data[11],
+                    primarySalesRep: data[3],
+                    solutionConsultant: data[4],
+                    city: "",
+                    country: "",
+                    totalACV: "",
+                    accountType: data[2],
                     isAppEngineSubscriber: false
 				};
 

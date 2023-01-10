@@ -95,62 +95,14 @@ var getCustomTables = function() {
             var tableName = gr.getValue("name");
             var tableHierarchy = new TableUtils(tableName);
             
-            customTables[tableName] = {};
+            customTables[tableName] = {
+                createdOn: new GlideDateTime(gr.getValue("sys_created_on")).getDate().getValue()
+            };
 
             var path = j2js(tableHierarchy.getHierarchy()).slice(1);
 
             if(path.length > 0)
                 customTables[tableName].path = path;
-        }
-
-    })();
-
-    //
-    // Get reference fields of these custom tables
-    //
-    (function(){
-        var gr = new GlideRecord("sys_dictionary");
-        gr.setWorkflow(false);
-        gr.addEncodedQuery("internal_type=reference^nameIN" + Object.keys(customTables).join(","));
-        gr.query();
-
-        while(gr.next()) {
-            var tableName = gr.getValue("name");
-            var referencedTableName = gr.getValue("reference");            
-            var customTable = customTables[tableName];
-
-            if(customTable.refs == undefined)
-                customTable.refs = {};
-
-            if(customTable.refs[referencedTableName] == undefined)
-                customTable.refs[referencedTableName] = 0;
-
-            customTable.refs[referencedTableName]++;            
-        }
-
-    })();
-
-    //
-    // Get tables that reference any of the custom tables
-    //
-    (function(){
-        var gr = new GlideRecord("sys_dictionary");
-        gr.setWorkflow(false);
-        gr.addEncodedQuery("nameNOT LIKEvar__^referenceIN" + Object.keys(customTables).join(","));
-        gr.query();
-
-        while(gr.next()) {
-            var tableName = gr.getValue("name");
-            var referencedTableName = gr.getValue("reference");
-            var customTable = customTables[referencedTableName];
-
-            if(customTable.refsBy == undefined)
-                customTable.refsBy = {};
-
-            if(customTable.refsBy[tableName] == undefined)
-                customTable.refsBy[tableName] = 0;
-
-            customTable.refsBy[tableName]++;            
         }
 
     })();
