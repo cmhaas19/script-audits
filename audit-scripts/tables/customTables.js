@@ -4,6 +4,8 @@ var getCustomTables = function() {
     var excludedTables = {};
     var excludedParentTables = {
         cmdb: true,
+        cmdb_ci: true,
+        cmdb_qb_result_base: true,
         cmn_location: true,
         cmn_schedule_condition: true,
         dl_definition: true,
@@ -26,6 +28,14 @@ var getCustomTables = function() {
         sys_user_preference: true,
         sysauto: true,
         syslog: true,
+        syslog0000: true,
+        syslog0001: true,
+        syslog0002: true,
+        syslog0003: true,
+        syslog0004: true,
+        syslog0005: true,
+        syslog0006: true,
+        syslog0007: true
     };
 
     var customTables = {};

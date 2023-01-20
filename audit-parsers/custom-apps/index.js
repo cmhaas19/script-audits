@@ -208,8 +208,10 @@ var writeCustomAppsWorksheet = (workbook, combinedApps) => {
         { header: 'Is Real App', width: 22 },
         { header: 'Created On', width: 22 },
         { header: 'Created On YYYY-MM', width: 22 },
+        { header: 'Created On YYYY', width: 22 },
         { header: 'Installed On', width: 22 },
         { header: 'Installed On YYYY-MM', width: 22 },
+        { header: 'Installed On YYYY', width: 22 },
     ]);
 
     for(var accountNo in combinedApps) {
@@ -234,8 +236,10 @@ var writeCustomAppsWorksheet = (workbook, combinedApps) => {
                 isRealApp: (app.isSysApp || app.isSysStoreApp),
                 createdOn: app.createdOn,
                 createdOnYearMonth: moment(app.createdOn).format("YYYY-MM"),
+                createdOnYear: moment(app.createdOn).format("YYYY"),
                 installedOn: app.installedOn,
-                installedOnYearMonth: (app.installedOn.length > 0 ? moment(app.installedOn).format("YYYY-MM") : "")
+                installedOnYearMonth: (app.installedOn.length > 0 ? moment(app.installedOn).format("YYYY-MM") : ""),
+                installedOnYear: (app.installedOn.length > 0 ? moment(app.installedOn).format("YYYY") : "")
             };
 
             worksheet.addRow(record);

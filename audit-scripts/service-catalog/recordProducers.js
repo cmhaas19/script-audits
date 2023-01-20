@@ -8,7 +8,7 @@ var getCompanyCode = function(){
     return companyCode;
 };
 
-var QUESTION_QUERY = "typeNOT IN12,20,24,19^cat_item.sys_class_name=sc_cat_item_producer^cat_item.active=true^cat_item.ref_sc_cat_item_producer.table_nameSTARTSWITHu_^ORcat_item.ref_sc_cat_item_producer.table_nameSTARTSWITHx_" + getCompanyCode();
+var QUESTION_QUERY = "typeNOT IN12,20,24,19^cat_item.sys_class_name=sc_cat_item_producer^ORcat_item.sys_class_name=sc_cat_item_producer_service^cat_item.ref_sc_cat_item_producer.table_nameSTARTSWITHu_^ORcat_item.ref_sc_cat_item_producer.table_nameSTARTSWITHx_" + getCompanyCode();
 
 var getCount = function(table, query) {
     var gr = new GlideAggregate(table);
@@ -22,16 +22,16 @@ var getCount = function(table, query) {
 
 var getCounts = function() {
     return {
-        total: getCount("sc_cat_item_producer", "active=true^sys_class_name=sc_cat_item_producer"),
-        customTableGlobal: getCount("sc_cat_item_producer","active=true^sys_class_name=sc_cat_item_producer^table_nameSTARTSWITHu_"),
-        customTableScoped: getCount("sc_cat_item_producer","active=true^sys_class_name=sc_cat_item_producer^table_nameSTARTSWITHx_" + getCompanyCode())
+        total: getCount("sc_cat_item_producer", "sys_class_name=sc_cat_item_producer^ORsys_class_name=sc_cat_item_producer_service"),
+        customTableGlobal: getCount("sc_cat_item_producer","sys_class_name=sc_cat_item_producer^ORsys_class_name=sc_cat_item_producer_service^table_nameSTARTSWITHu_"),
+        customTableScoped: getCount("sc_cat_item_producer","sys_class_name=sc_cat_item_producer^ORsys_class_name=sc_cat_item_producer_service^table_nameSTARTSWITHx_" + getCompanyCode())
     };
 };
 
 var getCustomTableInfo = function() {
     var gr = new GlideRecord("sc_cat_item_producer");
     gr.setWorkflow(false);
-    gr.addEncodedQuery("active=true^sys_class_name=sc_cat_item_producer^table_nameSTARTSWITHu_^ORtable_nameSTARTSWITHx_" + getCompanyCode());
+    gr.addEncodedQuery("sys_class_name=sc_cat_item_producer^ORsys_class_name=sc_cat_item_producer_service^table_nameSTARTSWITHu_^ORtable_nameSTARTSWITHx_" + getCompanyCode());
     gr.query();
 
     var results = {
@@ -150,6 +150,50 @@ var getQuestionMapAggregates = function() {
     return results;
 };
 
+var getRecordProducerCategoryCount = function() {
+	var gr = new GlideAggregate("sc_cat_item_category");  
+	gr.setWorkflow(false);
+	gr.addEncodedQuery("sc_cat_item.sys_class_name=sc_cat_item_producer^ORsc_cat_item.sys_class_name=sc_cat_item_producer_service");
+	gr.groupBy("sc_cat_item");
+	gr.addAggregate('COUNT');  
+	gr.query();
+
+	var results = {};
+
+	while(gr.next()) {  
+		var item = gr.getValue('sc_cat_item'),
+			count = gr.getAggregate('COUNT');
+
+		if(results[count] == undefined)
+			results[count] = 0;
+
+        results[count]++;
+	}
+
+	return results;
+};
+
+var getRecordProducersByMonth = function() {
+    var gr = new GlideAggregate("sc_cat_item_producer");  
+	gr.setWorkflow(false);
+	gr.addEncodedQuery("table_nameSTARTSWITHx_" + getCompanyCode() + "^ORtable_nameSTARTSWITHu_^sys_class_name=sc_cat_item_producer^ORsys_class_name=sc_cat_item_producer_service");
+	gr.addTrend ('sys_created_on','Month');  
+	gr.addAggregate('COUNT');  
+	gr.setGroup(false);  
+	gr.query();
+
+	var results = {};
+
+	while(gr.next()) {  
+		var month = gr.getValue('timeref'),
+			count = parseInt(gr.getAggregate('COUNT'));
+
+        results[month] = count;
+	}
+
+	return results;
+};
+
 //
 // # of record producers that have questions that purely map to fields
 //  vs. # of record producers that have questions that purely don't map to fields
@@ -163,7 +207,9 @@ var getQuestionMapAggregates = function() {
         customTables: getCustomTableInfo(),
         questionTypes: getQuestionTypes(),
         questionMapsToFields: getQuestionMapAggregates(),
-        questionMapMix: getQuestionMapMix()
+        questionMapMix: getQuestionMapMix(),
+        byMonth: getRecordProducersByMonth(),
+		byCategory: getRecordProducerCategoryCount()
 	};
 
 	gs.print(JSON.stringify(auditResults));

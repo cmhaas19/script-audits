@@ -1,8 +1,16 @@
+var getCompanyCode = function(){
+    var companyCode = gs.getProperty("glide.appcreator.company.code");
+
+    if(companyCode == undefined || companyCode == null || companyCode.length == 0)
+        return "";
+        
+    return companyCode;
+};
 
 var getRecordProducersByMonth = function() {
     var gr = new GlideAggregate("sc_cat_item_producer");  
 	gr.setWorkflow(false);
-	gr.addEncodedQuery(query);
+	gr.addEncodedQuery("table_nameSTARTSWITHx_" + getCompanyCode() + "^ORtable_nameSTARTSWITHu_^sys_class_name=sc_cat_item_producer^ORsys_class_name=sc_cat_item_producer_service");
 	gr.addTrend ('sys_created_on','Month');  
 	gr.addAggregate('COUNT');  
 	gr.setGroup(false);  
@@ -20,13 +28,38 @@ var getRecordProducersByMonth = function() {
 	return results;
 };
 
+var getRecordProducerCategoryCount = function() {
+	var gr = new GlideAggregate("sc_cat_item_category");  
+	gr.setWorkflow(false);
+	gr.addEncodedQuery("sc_cat_item.sys_class_name=sc_cat_item_producer^ORsc_cat_item.sys_class_name=sc_cat_item_producer_service");
+	gr.groupBy("sc_cat_item");
+	gr.addAggregate('COUNT');  
+	gr.query();
+
+	var results = {};
+
+	while(gr.next()) {  
+		var item = gr.getValue('sc_cat_item'),
+			count = gr.getAggregate('COUNT');
+
+		if(results[count] == undefined)
+			results[count] = 0;
+			
+        results[count]++;
+	}
+
+	return results;
+};
+
 (function(){
 
-    // 01 - Get "customer created" record producers created by month
-    // 02 - Get record producers by target table
+    // 01 - Get "customer created" record producers created by month (look for table's that start with u_ or x_)
+	// 02 - Get the # of categories associated ({ 'id': categoryCount })
+    // 02 - Get record producers by target table, then get the root table
 
 	var auditResults = {
-        recordProducers: getRecordProducersByMonth()
+        byMonth: getRecordProducersByMonth(),
+		byCategory: getRecordProducerCategoryCount()
 	};
 
 	gs.print(JSON.stringify(auditResults));

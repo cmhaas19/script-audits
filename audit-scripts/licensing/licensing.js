@@ -37,7 +37,7 @@ var getLicensingInfo = function() {
 
 (function(){
 
-    var results = getLicensingInfo(ranges.R1);
+    var results = getLicensingInfo();
 
     gs.print(JSON.stringify(results));
 
