@@ -44,11 +44,15 @@ var getRecordProducerCategoryCount = function() {
 
 		if(results[count] == undefined)
 			results[count] = 0;
-			
+
         results[count]++;
 	}
 
 	return results;
+};
+
+var getRecordProducerQuestions = function() {
+
 };
 
 (function(){
