@@ -15,7 +15,8 @@ const AES_VERSIONS = {
     "20.2.2": 2022,
     "21.0.1": 2101,
     "21.1.3": 2113,
-    "22.0.3": 2203
+    "22.0.3": 2203,
+    "23.0.2": 2302
 };
 
 
@@ -287,8 +288,8 @@ var writeCustomerWorksheet = (workbook, auditData) => {
     }
 };
 
-var writeAppUsageWorksheet = (workbook, auditData) => {
-    var worksheet = workbook.addWorksheet("App Usage");
+var writeAppUsageWorksheetMAU = (workbook, auditData) => {
+    var worksheet = workbook.addWorksheet("App Usage - Instances");
     worksheet.setStandardColumns([
         { header: 'Application', width: 14 },
         { header: 'Month', width: 8 },
@@ -318,6 +319,69 @@ var writeAppUsageWorksheet = (workbook, auditData) => {
         }
     }
 };
+
+var writeAppUsageWorksheetMAC = (workbook, auditData) => {
+    var accounts = {};
+
+    for(var instanceName in auditData){
+        var instance = auditData[instanceName];
+        var instanceInfo = instance.instanceInfo;
+
+        if(instanceInfo.account && instanceInfo.account.accountNo && instance.settings) {
+            instance.settings.forEach(row => {
+                if(row.data && row.data.applicationUsage) {
+                    for(var appName in row.data.applicationUsage){
+                        var app = row.data.applicationUsage[appName];
+                        var accountNo = instanceInfo.account.accountNo;
+
+                        if(accounts[accountNo] == undefined)
+                            accounts[accountNo] = { accountInfo: instanceInfo.account, apps: {} };
+
+                        if(accounts[accountNo].apps[appName] == undefined)
+                            accounts[accountNo].apps[appName] = {};
+
+                        for(var month in app){
+                            if(accounts[accountNo].apps[appName][month] == undefined)
+                                accounts[accountNo].apps[appName][month] = 0;
+
+                            accounts[accountNo].apps[appName][month] += parseInt(app[month]);
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    var worksheet = workbook.addWorksheet("App Usage - Customers");
+    worksheet.setColumns([
+        { header: 'Company', width: 14 },
+        { header: 'Account No', width: 14 },
+        { header: 'Account Type', width: 14 },
+        { header: 'App Engine Subscriber', width: 14 },
+        { header: 'Application', width: 14 },
+        { header: 'Month', width: 8 },
+        { header: 'No. of Users', width: 12 }
+    ]);
+
+    for(var accountNo in accounts) {
+        for(var appName in accounts[accountNo].apps) {
+            for(var month in accounts[accountNo].apps[appName]) {
+                var result = {
+                    company: accounts[accountNo].accountInfo.accountName,
+                    accountNo: accountNo,
+                    accountType: accounts[accountNo].accountInfo.accountType,
+                    appEngineSubscriber: accounts[accountNo].accountInfo.isAppEngineSubscriber,
+                    appName,
+                    month,
+                    users: accounts[accountNo].apps[appName][month]
+                };
+
+                worksheet.addRow(result);
+            }
+        }
+    }
+};
+
 
 var writeCustomAppsWorksheet = (workbook, auditData) => {
 
@@ -840,8 +904,11 @@ var writeOverviewWorksheet = (worksheet, auditData, customApps) => {
             writeCustomerWorksheet(workbook, auditData);
             console.log("Created Customer Worksheet");
 
-            writeAppUsageWorksheet(workbook, auditData);
-            console.log("Created App Usage Worksheet");
+            writeAppUsageWorksheetMAU(workbook, auditData);
+            console.log("Created App Usage MAU Worksheet");
+
+            writeAppUsageWorksheetMAC(workbook, auditData);
+            console.log("Created App Usage MAC Worksheet");
 
             var customApps = writeCustomAppsWorksheet(workbook, auditData);
             console.log("Created Custom Apps Worksheet");

@@ -7,6 +7,17 @@ var CONSTANTS = {
     AES_PLUGIN_ID: "com.snc.app-engine-studio"
 };
 
+var APP_NAMES = [
+	'App Engine Studio',
+	'Table Builder',
+	'Table Builder for App Engine',
+	'App Engine Management Center',
+	'Studio',
+	'Workspace Builder',
+	'Workspace Builder for App Engine',
+	'PDF Extractor'
+];
+
 var getPropertyValue = function(name){
     var value = gs.getProperty(name);
 
@@ -132,7 +143,8 @@ var getApplicationUsage = function() {
         return appUsage;
 
     gr.setWorkflow(false);	
-    gr.addEncodedQuery("app_name=App Engine Studio^ORapp_name=Studio^ORapp_name=Table Builder^ORapp_name=App Engine Management Center");
+    //gr.addEncodedQuery("app_name=App Engine Studio^ORapp_name=Studio^ORapp_name=Table Builder^ORapp_name=App Engine Management Center");
+	gr.addEncodedQuery("app_nameIN" + APP_NAMES.join(","));
     gr.addAggregate("COUNT");
     gr.groupBy("app_name");
     gr.groupBy("time_stamp");

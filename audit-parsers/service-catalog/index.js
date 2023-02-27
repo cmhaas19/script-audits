@@ -1,102 +1,83 @@
 
 const path = require('path');
+const Audit = require('../common/AuditWorkbook.js');
 const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const moment = require("moment");
 
-var generateColumns = (values) => {
-    var columns = [
-        { header: 'Instance Name', width: 22 },
-        { header: 'Company', width: 42 },
-        { header: 'Account No.', width: 12 },
-        { header: 'Account Type', width: 17 },
-        { header: 'Primary Rep', width: 22 },
-        { header: 'Solution Consultant', width: 23 },
-        { header: 'App Engine Subscriber', width: 22 },
-        { header: 'Instance Version', width: 63 },
-        { header: 'Instance Purpose', width: 16 },
-    ];
-
-    return columns.concat(values);
-};
-
-var generateRowValues = (instanceName, instance, values) => {
-    var rowValues = [];
-
-    if(instance && instance.account) {
-        var account = instance.account;
-        rowValues = [instanceName, account.accountName, account.accountNo, account.accountType, account.primarySalesRep, account.solutionConsultant, account.isAppEngineSubscriber, instance.version, instance.purpose];
-    }                
-    else {
-        rowValues = [instanceName,"","","","","","","",""];
-    }
-        
-
-    return rowValues.concat(values);
-};
-
 var processRecordProducers = () => {
     var promise = new Promise((resolve, reject) => {
 
-        var wb = new ExcelJS.stream.xlsx.WorkbookWriter({
-            filename: "record-producer-results.xlsx"
-        });
-
-        var fileName = path.join(__dirname, "record-producers.csv");   
+        var fileName = path.join(__dirname, "record-producer-results.csv");   
 
         FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
 
+            var wb = new Audit.AuditWorkbook("record-producer-results.xlsx");
+
             (function(){
                 var ws = wb.addWorksheet("General");
-    
-                ws.columns = generateColumns([
-                    { header: '# of Record Producers', width: 17 },
+
+                ws.setStandardColumns([
+                    //{ header: '# of Record Producers', width: 17 },
                     { header: '# Map to Custom Global Tables', width: 25 },
                     { header: '# Map to Custom Scoped Tables', width: 25 },
                     { header: '# Map to Custom Tables', width: 25 },
                     { header: '# with questions only mapped to fields', width: 32 },
                     { header: '# with questions only mapped to variables', width: 32 },
                     { header: '# with questions mapped to fields and variables', width: 35 },
-                    { header: '# of questions mapped to fields', width: 27 },
-                    { header: '# of questions mapped to variables', width: 27 },
-                    { header: '# of questions mapped to variables and fields', width: 34 }
+                    //{ header: '# of questions mapped to fields', width: 27 },
+                    //{ header: '# of questions mapped to variables', width: 27 },
+                    //{ header: '# of questions mapped to variables and fields', width: 34 }
                 ]);
                 
                 auditData.forEach((row) => {
 
                     if(row.data) {
-                        var values = [];
+
+                        var result = {
+                            //total: 0,
+                            totalGlobalTables: 0,
+                            totalScopedTables: 0,
+                            totalCustomTables: 0,
+                            onlyFields: 0,
+                            onlyVariables: 0,
+                            mixedFieldsAndVariables: 0,
+                            //questionsFields: 0,
+                            //questionsVariables: 0,
+                            //questionsMixed: 0
+                        };
 
                         if(row.data.counts) {
-                            values.push(row.data.counts.total, row.data.counts.customTableGlobal, row.data.counts.customTableScoped, (row.data.counts.customTableGlobal + row.data.counts.customTableScoped));
-                        } else {
-                            values.push(0, 0, 0);
+                            ///result.total = row.data.counts.total;
+                            result.totalGlobalTables = row.data.counts.customTableGlobal;
+                            result.totalScopedTables = row.data.counts.customTableScoped;
+                            result.totalCustomTables = (row.data.counts.customTableGlobal + row.data.counts.customTableScoped);                            
                         }
 
                         if(row.data.questionMapMix) {
-                            values.push(row.data.questionMapMix.total, row.data.questionMapMix.pureFields, row.data.questionMapMix.pureVariables, row.data.questionMapMix.mixture);
-                        } else {
-                            values.push(0, 0, 0, 0);
+                            result.onlyFields = row.data.questionMapMix.pureFields;
+                            result.onlyVariables = row.data.questionMapMix.pureVariables;
+                            result.mixedFieldsAndVariables = row.data.questionMapMix.mixture;
                         }
 
-                        if(row.data.questionMapsToFields) {
-                            values.push((row.data.questionMapsToFields.true || 0), (row.data.questionMapsToFields.false || 0));
-                        } else {
-                            values.push(0, 0);
-                        }                        
+                        /* if(row.data.questionMapsToFields) {
+                            if(row.data.questionMapsToFields.true != undefined)
+                                result.questionsFields = row.data.questionMapsToFields.true;
 
-                        ws.addRow(generateRowValues(row.instanceName, row.instance, values)).commit();
+                            if(row.data.questionMapsToFields.false != undefined)
+                                result.questionsVariables = row.data.questionMapsToFields.false;
+
+                        } */
+                        
+                        ws.addStandardRow(row.instanceName, row.instance, result);
                     }
                 });
-
-                ws.commit();
-
             })();
 
             (function(){
                 var ws = wb.addWorksheet("Question Types");
     
-                ws.columns = generateColumns([
+                ws.setStandardColumns([
                     { header: 'Question Type', width: 22 },
                     { header: 'Count', width: 16 }
                 ]);
@@ -104,19 +85,17 @@ var processRecordProducers = () => {
                 auditData.forEach((row) => {
                     if(row.data && row.data.questionTypes) {                        
                         for(var questionType in row.data.questionTypes) {
-                            ws.addRow(generateRowValues(row.instanceName, row.instance, [questionType, row.data.questionTypes[questionType]])).commit();
-                        }                        
+                            ws.addStandardRow(row.instanceName, row.instance, { questionType, count: row.data.questionTypes[questionType] });
+                        }
                     }
                 });
-
-                ws.commit();
 
             })();
 
             (function(){
                 var ws = wb.addWorksheet("Extended Tables");
     
-                ws.columns = generateColumns([
+                ws.setStandardColumns([
                     { header: 'Table', width: 22 },
                     { header: 'Count', width: 16 }
                 ]);
@@ -127,12 +106,51 @@ var processRecordProducers = () => {
                             var count = row.data.customTables[table];
 
                             if(count > 0)
-                                ws.addRow(generateRowValues(row.instanceName, row.instance, [table, count])).commit();
+                                ws.addStandardRow(row.instanceName, row.instance, {table, count});
                         }                        
                     }
                 });
 
-                ws.commit();
+            })();
+
+            (function(){
+                var ws = wb.addWorksheet("Categories");
+    
+                ws.setStandardColumns([
+                    { header: 'No. of items', width: 20 },
+                    { header: 'No. of categories mapped', width: 20 }
+                ]);
+                
+                auditData.forEach((row) => {
+                    if(row.data && row.data.byCategory) {                        
+                        for(var categoryCount in row.data.byCategory) {
+                            var itemCount = row.data.byCategory[categoryCount];
+
+                            ws.addStandardRow(row.instanceName, row.instance, {itemCount, categoryCount});
+                        }                        
+                    }
+                });
+
+            })();
+
+            (function(){
+                var ws = wb.addWorksheet("Record Producers by Month");
+    
+                ws.setStandardColumns([
+                    { header: 'Month', width: 20 },
+                    { header: 'No. of Record Producers', width: 20 }
+                ]);
+                
+                auditData.forEach((row) => {
+                    if(row.data && row.data.byMonth) {                        
+                        for(var month in row.data.byMonth) {
+                            var count = row.data.byMonth[month];
+
+                            if(count > 0)
+                                ws.addStandardRow(row.instanceName, row.instance, {month: moment(month, 'MM/YYYY').format("YYYY-MM"), count});
+                        }                        
+                    }
+                });
 
             })();
             
@@ -253,8 +271,11 @@ var processServices = () => {
 
 (function(){
 
-    processRecordProducers()
+    /* processRecordProducers()
         .then(() => processServices()
-        .then(() => { console.log("Done") }));
+        .then(() => { console.log("Done") })); */
+    
+    processRecordProducers()
+        .then(() => { console.log("Done") });
 
 })();
