@@ -52,7 +52,7 @@ var loadAccountData = () => {
                     solutionConsultant: data[4],
                     city: "",
                     country: "",
-                    totalACV: "",
+                    totalACV: (isNaN(data[5]) ? 0 : parseFloat(data[5])),
                     accountType: data[2],
                     isAppEngineSubscriber: false
 				};
