@@ -29,6 +29,15 @@ var loadPackages = () => {
     return promise;
 };
 
+var isCustomArtifact = (artifact) => {
+    if(artifact == undefined || artifact == null || artifact.length == 0)
+        return "N/A";
+    
+        var isCustom = artifact.startsWith("u_") || artifact.startsWith("x_");
+
+        return (isCustom ? "Yes" : "No");
+};
+
 (function(){
 
     //
@@ -147,11 +156,12 @@ var loadPackages = () => {
                     { header: 'Purpose', key: 'purpose', width: 18 },
                     { header: 'Customer', key: 'customer', width: 28 },
                     { header: 'Scope', key: 'scope', width: 22 },
-                    { header: 'Scope Created', key: 'scope', width: 20 },
-                    { header: 'Scope Created YYYY-MM', key: 'scope', width: 20 },
+                    { header: 'Scope Created', key: 'sc', width: 20 },
+                    { header: 'Scope Created YYYY-MM', key: 'scy', width: 20 },
                     { header: 'Artifact', key: 'artifact', width: 40 },
                     { header: 'Artifact Label', key: 'lbl', width: 40 },
                     { header: 'Artifact Package', key: 'pkg', width: 40 },
+                    { header: 'Artifact Is Custom', key: 'custom', width: 40 },
                     { header: 'Count', key: 'count', width: 10 }
                 ];
     
@@ -168,8 +178,20 @@ var loadPackages = () => {
                             lbl = table.lbl;
                         }
 
-                        worksheet.addRow([app.instance.name, app.instance.purpose, app.instance.customer, scope, app.createdOn, moment(app.createdOn).format("YYYY-MM"), artifact, lbl, pkg, app.artifacts[artifact]]).commit();  
-                        rowCount++;
+                        worksheet.addRow([
+                            app.instance.name, 
+                            app.instance.purpose, 
+                            app.instance.customer, 
+                            scope, 
+                            app.createdOn, 
+                            moment(app.createdOn).format("YYYY-MM"), 
+                            artifact, 
+                            lbl, 
+                            pkg, 
+                            isCustomArtifact(artifact),
+                            app.artifacts[artifact]]).commit();  
+                        
+                            rowCount++;
                     }
                 }
 
