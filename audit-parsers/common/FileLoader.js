@@ -146,7 +146,32 @@ var loadFileWithInstancesAndAccounts = function(fileName) {
                     // Add instance/account info to each row
                     //
                     auditData.forEach((row) => {
-                        row.instance = instances[row.instanceName];
+                        var instance = instances[row.instanceName];
+
+                        if(instance == undefined){
+                            instance = {
+                                customer: "",
+                                accountNo: "",
+                                version: "",
+                                purpose: "",
+                                category: "",
+                                subCategory: "",
+                                usesOracle: false,
+                                account: {
+                                    accountName: "",
+                                    accountNo: "",
+                                    primarySalesRep: "",
+                                    solutionConsultant: "",
+                                    city: "",
+                                    country: "",
+                                    totalACV: "",
+                                    accountType: "",
+                                    isAppEngineSubscriber: false
+                                }
+                            }
+                            console.log(`Could not find instance ${row.instanceName}`);
+                        }
+                        row.instance = instance;
                     });
                     
                     resolve(auditData);

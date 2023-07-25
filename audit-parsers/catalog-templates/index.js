@@ -4,14 +4,26 @@ const Audit = require('../common/AuditWorkbook.js');
 const FileLoader = require('../common/FileLoader.js');
 const moment = require("moment");
 
-var getGuidedSetupStatus = (data, propName) => {
-    var status = 0;
+var processTemplates = (wb, auditData) => {
+    var ws = wb.addWorksheet("Templates");
 
-    if(data.guidedSetupStatus && data.guidedSetupStatus[propName] && data.guidedSetupStatus[propName].progress) {
-        status = parseInt(data.guidedSetupStatus[propName].progress);
-    }
+    ws.setStandardColumns([
+        { header: 'Template ID', width: 20 },
+        { header: 'Template Name', width: 20 },
+        { header: 'Count', width: 20, alignment: { horizontal: 'right' } }
+    ]);
 
-    return status;
+    auditData.forEach((row) => {
+        if(row.data && row.data.templateCounts) {
+            for(var id in row.data.templateCounts) {
+                ws.addStandardRow(row.instanceName, row.instance, {
+                    id: id,
+                    name: row.data.templateCounts[id].name,
+                    count: row.data.templateCounts[id].count,
+                });
+            }
+        }
+    });
 };
 
 var processSummary = (wb, auditData) => {
@@ -169,6 +181,8 @@ var processTemplateOverrides = (wb, auditData) => {
         var wb = new Audit.AuditWorkbook("catalog-templates-processed.xlsx");
 
         processSummary(wb, auditData);
+
+        processTemplates(wb, auditData);
 
         processItemCounts(wb, auditData);
 
