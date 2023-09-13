@@ -1,0 +1,30 @@
+{
+    "actions":{
+       "Update Record":{
+          "Table":{
+             "sc_req_item":140,
+             "sc_task":63,
+             "sc_request":7
+          },
+          "Fields":{
+             "":12,
+             "state,work_notes":57,
+             "state":53,
+             "work_notes":3,
+             "approval,request_state":1
+          }
+       },
+       "Wait For Condition":{
+          "Table":{
+             "sc_req_item":23,
+             "sc_task":20
+          },
+          "Conditions":{
+             "ORapproval,approval":18,
+             "ORstate,state":9,
+             "stateIN3,4,7":14,
+             "active":2
+          }
+       }
+    }
+ }

@@ -1,0 +1,34 @@
+{
+   "usage":{
+      "2023-08":"1"
+   },
+   "services":{
+      "8/2023":1,
+      "9/2023":1
+   },
+   "workflows":{
+      "totalItems":2,
+      "totalWithWorkflow":2,
+      "workflowDetails":{
+         "approvalNotifications":{
+            "items":1,
+            "total":1
+         },
+         "assignments":{
+            "user":0,
+            "group":1
+         },
+         "approvals":{
+            "opened_by.manager":1
+         },
+         "completionNotifications":{
+            "items":1,
+            "total":1
+         },
+         "submissionNotifications":{
+            "items":1,
+            "total":1
+         }
+      }
+   }
+}

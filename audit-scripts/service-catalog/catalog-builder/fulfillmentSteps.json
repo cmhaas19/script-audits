@@ -1,0 +1,20 @@
+{
+    "currentLanguage":"en",
+    "fulfillmentSteps":{
+       "2b7d9a7e87022010c84e4561d5cb0b21":{
+          "name":"Custom approval",
+          "items":1,
+          "total":1
+       },
+       "38ee146053162010fca7ddeeff7b1221":{
+          "name":"Manager approval",
+          "items":1,
+          "total":1
+       },
+       "dc0f364873122010ae42d31ee2f6a7f3":{
+          "name":"Task",
+          "items":1,
+          "total":2
+       }
+    }
+ }

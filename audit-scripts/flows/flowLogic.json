@@ -1,0 +1,558 @@
+{
+    "companyCode":"snc",
+    "totalFlows":26,
+    "flows":{
+       "ab2ea898c3c1f110ab5d203bb0013147":{
+          "name":"Run on child tables",
+          "trigger":{
+             "type":1,
+             "runOnExtended":"true"
+          }
+       },
+       "0ced196b87f87510ef22fc84dabb35a1":{
+          "name":"Expense Management Approval Flow",
+          "trigger":{
+             "type":1,
+             "table":{
+                "name":"x_snc_exp3nse_mana_expense_request",
+                "path":[
+                   "task"
+                ]
+             }
+          },
+          "logic":{
+             "Else":1,
+             "If":1
+          },
+          "actions":{
+             "Ask For Approval":1,
+             "Send Email":2
+          }
+       },
+       "cec474ec57401110403e8f90ac94f964":{
+          "name":"Change - Unauthorized - Review",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "actions":{
+             "Create Task":1
+          }
+       },
+       "7331fb2d0fd70110d106ac5397767e70":{
+          "name":"Work item creation",
+          "trigger":{
+             "type":1,
+             "table":{
+                "name":"awa_work_item",
+                "path":[
+                   
+                ]
+             }
+          },
+          "actions":{
+             "Log":1
+          }
+       },
+       "5ea5d7d453c50110af71ddeeff7b12da":{
+          "name":"IAR SLA Reminder",
+          "trigger":{
+             "type":9
+          },
+          "logic":{
+             "Else":1,
+             "Else If":1,
+             "End":4,
+             "For Each":1,
+             "If":7
+          },
+          "actions":{
+             "Get Notification Details":1,
+             "IAR Close Task from Catalog Timeout":1,
+             "IAR Send SMS Reminder":1,
+             "IAR Send VA Reminder":1,
+             "Look Up Record":1,
+             "Look Up Records":1,
+             "Send Notification":1,
+             "SLA Percentage Timer":2,
+             "Unassign Bot User":3,
+             "Update Record":7
+          }
+       },
+       "dd7a6da0c7a53010cf21309e95c2603c":{
+          "name":"Deprecate Homepages when Polaris is ON",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"sys_properties",
+                "path":[
+                   "sys_metadata"
+                ]
+             }
+          },
+          "actions":{
+             "Create or Update Record":1
+          }
+       },
+       "927c5a427301301070e1f988caf6a7df":{
+          "name":"Force use report designer when Next Experience is ON",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"sys_properties",
+                "path":[
+                   "sys_metadata"
+                ]
+             }
+          },
+          "logic":{
+             "If":1
+          },
+          "actions":{
+             "Look Up Record":1,
+             "Update Record":1
+          }
+       },
+       "fe02cf86c31320109cfb54d41340dde8":{
+          "name":"Report Access Request Flow",
+          "trigger":{
+             "type":1,
+             "table":{
+                "name":"sys_report_access_request",
+                "path":[
+                   "task"
+                ]
+             }
+          },
+          "logic":{
+             "End":4,
+             "If":4,
+             "Set Flow Variables":1
+          },
+          "actions":{
+             "Ask For Approval":1,
+             "Send Email":2,
+             "Update Multiple Records":1,
+             "Update Record":1
+          }
+       },
+       "21ea92dd53622010fca7ddeeff7b12b1":{
+          "name":"Step based request fulfillment",
+          "trigger":{
+             "type":8
+          },
+          "logic":{
+             "Else If":1,
+             "End":2,
+             "If":1
+          },
+          "actions":{
+             "Update Record":2
+          },
+          "subflows":1
+       },
+       "e8ff3b2353e3101034d1ddeeff7b1233":{
+          "name":"Change - Cloud Infrastructure - Authorize",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "logic":{
+             "Do the following in Parallel":1,
+             "Else":1,
+             "End":3,
+             "If":2,
+             "Parallel Branch":3
+          },
+          "actions":{
+             "Apply Change Approval Policy":1,
+             "Disregard Change Request Approvals":2,
+             "Evaluate Change Model":2,
+             "Send Email":1,
+             "Update Record":2,
+             "Wait For Condition":2
+          }
+       },
+       "2d21fba753a3101034d1ddeeff7b128b":{
+          "name":"Change - Unauthorized - Authorize",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "logic":{
+             "Do the following in Parallel":1,
+             "Else":1,
+             "End":2,
+             "If":2,
+             "Parallel Branch":2
+          },
+          "actions":{
+             "Apply Change Approval Policy":1,
+             "Disregard Change Request Approvals":1,
+             "Evaluate Change Model":2,
+             "Send Email":1,
+             "Update Record":2,
+             "Wait For Condition":1
+          }
+       },
+       "d8fc7e5b73d31010ec95d11ee2f6a7c5":{
+          "name":"Business process approval flow",
+          "trigger":{
+             "type":11,
+             "table":{
+                "name":"cmdb_ci_business_process",
+                "path":[
+                   "cmdb_ci",
+                   "cmdb"
+                ]
+             }
+          },
+          "logic":{
+             "Else If":1,
+             "If":2
+          },
+          "actions":{
+             "Ask For Approval":1,
+             "Update Business Process state":2
+          }
+       },
+       "812fbede731310108ef62d2b04f6a740":{
+          "name":"Change - Standard - Implement",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "logic":{
+             "Do the following in Parallel":1,
+             "End":2,
+             "Parallel Branch":2
+          },
+          "actions":{
+             "Cancel Change Tasks created from Flow":1,
+             "Evaluate Change Model":2,
+             "Wait For Condition":1
+          },
+          "subflows":1
+       },
+       "e89e3ade731310108ef62d2b04f6a744":{
+          "name":"Change - Standard",
+          "trigger":{
+             "type":1,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "actions":{
+             "Evaluate Change Model":1,
+             "Update Record":1
+          }
+       },
+       "bd6932da731310108ef62d2b04f6a7f4":{
+          "name":"Change - Emergency - Review",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "logic":{
+             "If":1
+          },
+          "actions":{
+             "Create Task":1,
+             "Look Up Record":1
+          }
+       },
+       "e2c87e9a731310108ef62d2b04f6a762":{
+          "name":"Change - Emergency - Implement",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "logic":{
+             "Do the following in Parallel":1,
+             "End":2,
+             "Parallel Branch":2
+          },
+          "actions":{
+             "Cancel Change Tasks created from Flow":1,
+             "Evaluate Change Model":2,
+             "Wait For Condition":1
+          },
+          "subflows":1
+       },
+       "7467365a731310108ef62d2b04f6a72a":{
+          "name":"Change - Emergency - Authorize",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "logic":{
+             "Do the following in Parallel":1,
+             "End":2,
+             "If":2,
+             "Parallel Branch":2
+          },
+          "actions":{
+             "Apply Change Approval Policy":1,
+             "Disregard Change Request Approvals":1,
+             "Evaluate Change Model":2,
+             "Send Email":1,
+             "Update Record":1,
+             "Wait For Condition":1
+          }
+       },
+       "1f54be96731310108ef62d2b04f6a7d7":{
+          "name":"Change - Normal - Implement",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "logic":{
+             "Do the following in Parallel":1,
+             "End":2,
+             "Parallel Branch":2
+          },
+          "actions":{
+             "Cancel Change Tasks created from Flow":1,
+             "Evaluate Change Model":2,
+             "Wait For Condition":1
+          },
+          "subflows":1
+       },
+       "2f33fe56731310108ef62d2b04f6a749":{
+          "name":"Change - Normal - Authorize",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "logic":{
+             "Do the following in Parallel":1,
+             "End":2,
+             "If":2,
+             "Parallel Branch":2
+          },
+          "actions":{
+             "Apply Change Approval Policy":1,
+             "Check Change for User Approval":1,
+             "Disregard Change Request Approvals":1,
+             "Evaluate Change Model":2,
+             "Send Email":1,
+             "Update Record":1,
+             "Wait For Condition":1
+          }
+       },
+       "edcf6ed2731310108ef62d2b04f6a7eb":{
+          "name":"Change - Normal - Assess",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"change_request",
+                "path":[
+                   "task",
+                   "change_request_imac"
+                ]
+             },
+             "runOnExtended":"true"
+          },
+          "logic":{
+             "Do the following in Parallel":1,
+             "End":2,
+             "If":2,
+             "Parallel Branch":2
+          },
+          "actions":{
+             "Apply Change Approval Policy":1,
+             "Disregard Change Request Approvals":1,
+             "Evaluate Change Model":2,
+             "Send Email":1,
+             "Update Record":1,
+             "Wait For Condition":1
+          }
+       },
+       "a681f2fd5b131010f8f93eaa3d81c7be":{
+          "name":"KPI Signals Configuration Update Flow",
+          "trigger":{
+             "type":11,
+             "table":{
+                "name":"pa_xmr_processes",
+                "path":[
+                   
+                ]
+             }
+          },
+          "logic":{
+             "End":1,
+             "If":1
+          },
+          "actions":{
+             "Delete Record":1,
+             "Look Up Record":1,
+             "Update Record":1
+          }
+       },
+       "318c46b35b431010f8f93eaa3d81c7e7":{
+          "name":"KPI Signals Reminder Notification Flow",
+          "trigger":{
+             "type":1,
+             "table":{
+                "name":"kpi_signals_task",
+                "path":[
+                   "analytics_task"
+                ]
+             }
+          },
+          "logic":{
+             "Do the following until":1,
+             "Else":1,
+             "End":1,
+             "If":2,
+             "Set Flow Variables":1
+          },
+          "actions":{
+             "Send Email":2,
+             "Update Record":1,
+             "Wait For Condition":1
+          }
+       },
+       "7ca94cdf5b031010f8f93eaa3d81c7c6":{
+          "name":"KPI Signals Task Create/Update Workflow",
+          "trigger":{
+             "type":2,
+             "table":{
+                "name":"pa_xmr_signals",
+                "path":[
+                   
+                ]
+             }
+          },
+          "logic":{
+             "Else If":1,
+             "End":2,
+             "If":1
+          },
+          "actions":{
+             "Create or Update Record":1,
+             "Update Record":2
+          }
+       },
+       "9edda27ce4001410f877ce457cda6b10":{
+          "name":"Register Business Application",
+          "trigger":{
+             "type":1,
+             "table":{
+                "name":"business_app_request",
+                "path":[
+                   "task"
+                ]
+             }
+          },
+          "logic":{
+             "Else If":2,
+             "If":2
+          },
+          "actions":{
+             "Ask For Approval":1,
+             "Create Business App":1,
+             "Send Email":3,
+             "Update Record":2
+          }
+       },
+       "828f267973333300e289235f04f6a7a3":{
+          "name":"Default SLA flow",
+          "trigger":{
+             "type":9
+          },
+          "logic":{
+             "If":3
+          },
+          "actions":{
+             "Create Record":4,
+             "Look Up Record":3,
+             "SLA Percentage Timer":2,
+             "Wait For Condition":1
+          }
+       },
+       "0335e63573333300e289235f04f6a70f":{
+          "name":"SLA notification and escalation flow",
+          "trigger":{
+             "type":9
+          },
+          "logic":{
+             "If":6
+          },
+          "actions":{
+             "Create Record":6,
+             "Look Up Record":3,
+             "SLA Percentage Timer":2,
+             "Wait For Condition":1
+          }
+       }
+    }
+ }
