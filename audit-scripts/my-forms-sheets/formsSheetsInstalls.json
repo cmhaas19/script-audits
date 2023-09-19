@@ -1,0 +1,45 @@
+{
+    "mySheets":{
+       "appInfo":{
+          "installed":true,
+          "installedOn":"2023-09-18 22:44:28",
+          "version":"1.0.0"
+       },
+       "workspaces":[
+          {
+             "createdOn":"2023-09-18",
+             "books":[
+                {
+                   "createdOn":"2023-09-18",
+                   "sheets":[
+                      {
+                         "createdOn":"2023-09-18",
+                         "columns":4,
+                         "rows":1
+                      },
+                      {
+                         "createdOn":"2023-09-18",
+                         "columns":4,
+                         "rows":2
+                      }
+                   ]
+                }
+             ]
+          }
+       ]
+    },
+    "myForms":{
+       "appInfo":{
+          "installed":true,
+          "installedOn":"2023-09-18 22:43:23",
+          "version":"1.0.7"
+       },
+       "forms":[
+          {
+             "createdOn":"2023-09-19",
+             "state":"published",
+             "responses":1
+          }
+       ]
+    }
+ }
