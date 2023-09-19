@@ -108,53 +108,84 @@ var processSummary = (wb, auditData) => {
 };
 
 var processTasksByMonth = (wb, auditData) => {
-    var ws = wb.addWorksheet("Tasks by Month");
+    var ws = wb.addWorksheet("Customers by Month");
 
     ws.setColumns([
+        { header: 'Customer', width: 20 },
+        { header: 'Account No.', width: 20 },
+        { header: 'Account Type', width: 20 },
+        { header: 'Primary Rep', width: 20 },
+        { header: 'Solution Consultant', width: 20 },
+        { header: 'App Engine Subscriber', width: 22 },
         { header: 'Month', width: 20 },
+        { header: 'Monthly Active Users', width: 25, alignment: { horizontal: 'right' } },
         { header: 'Deployment Tasks', width: 20, alignment: { horizontal: 'right' } },
         { header: 'Collaboration Tasks', width: 20, alignment: { horizontal: 'right' } },
-        { header: 'App Intake Tasks', width: 20, alignment: { horizontal: 'right' } }
+        { header: 'App Intake Tasks', width: 20, alignment: { horizontal: 'right' } },
     ]);
 
-    var TASKS = {};
-    var getOrCreateMonth = (month) => {
-        if(TASKS[month] == undefined)
-            TASKS[month] = { deployment: 0, collaboration: 0, intake: 0 };
+    var CUSTOMERS = {};
+    var getOrCreateCustomerMonth = (row, month) => {
+        var instance = row.instance;
+        var account = instance.account;
 
-        return TASKS[month];
-    }
+        if(CUSTOMERS[account.accountNo] == undefined)
+            CUSTOMERS[account.accountNo] = {};
+
+        if(CUSTOMERS[account.accountNo][month] == undefined)
+            CUSTOMERS[account.accountNo][month] = { deployment: 0, collaboration: 0, intake: 0, activeUsers: 0, instance: instance };
+
+        return CUSTOMERS[account.accountNo][month];
+    };
 
     auditData.forEach((row) => {
         if(row.data && row.instance && row.instance.purpose != "Demonstration") {
     
             if(row.data.appIntakeRequests) {
                 for(var month in row.data.appIntakeRequests.months) {
-                    getOrCreateMonth(month).intake += row.data.appIntakeRequests.months[month];
+                    getOrCreateCustomerMonth(row, moment(month, 'MM/YYYY').format("YYYY-MM")).intake += row.data.appIntakeRequests.months[month];
                 }
             } 
     
             if(row.data.deploymentRequests) {
                 for(var month in row.data.deploymentRequests) {
-                    getOrCreateMonth(month).deployment += row.data.deploymentRequests[month];
+                    getOrCreateCustomerMonth(row, moment(month, 'MM/YYYY').format("YYYY-MM")).deployment += row.data.deploymentRequests[month];
                 }
             }
     
             if(row.data.collaborationRequests) {
                 for(var month in row.data.collaborationRequests) {
-                    getOrCreateMonth(month).collaboration += row.data.collaborationRequests[month];
+                    getOrCreateCustomerMonth(row, moment(month, 'MM/YYYY').format("YYYY-MM")).collaboration += row.data.collaborationRequests[month];
+                }
+            }
+
+            if(row.data.applicationUsage && row.data.applicationUsage["App Engine Management Center"]) {
+                for(var month in row.data.applicationUsage["App Engine Management Center"]) {
+                    getOrCreateCustomerMonth(row, month).activeUsers += parseInt(row.data.applicationUsage["App Engine Management Center"][month]);
                 }
             }
         }
     });
 
-    for(var month in TASKS) {
-        ws.addRow({
-            month: moment(month, 'MM/YYYY').format("YYYY-MM"),
-            deploymentCounts: TASKS[month].deployment,
-            collaborationCounts: TASKS[month].collaboration,
-            intakeCounts: TASKS[month].intake
-        });
+    for(var accountNo in CUSTOMERS) {
+        for(var month in CUSTOMERS[accountNo]) {
+            var instance = CUSTOMERS[accountNo][month].instance;
+            var account = instance.account;
+
+            ws.addRow({
+                accountName: account.accountName,
+                accountNo: account.accountNo,
+                accountType: account.accountType,
+                primarySalesRep: account.primarySalesRep,
+                solutionConsultant: account.solutionConsultant,
+                isAppEngineSubscriber: account.isAppEngineSubscriber,
+                month: month,
+                activeUsers: CUSTOMERS[accountNo][month].activeUsers,
+                deploymentCounts: CUSTOMERS[accountNo][month].deployment,
+                collaborationCounts: CUSTOMERS[accountNo][month].collaboration,
+                intakeCounts: CUSTOMERS[accountNo][month].intake
+            });
+        }
     }
 };
 
