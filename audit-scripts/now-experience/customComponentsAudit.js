@@ -1,97 +1,55 @@
-
 var getCompanyCode = function(){
     var companyCode = gs.getProperty("glide.appcreator.company.code");
 
     if(companyCode == undefined || companyCode == null || companyCode.length == 0)
         return null;
-        
+
     return companyCode;
 };
 
-var excludedFields = [
-    "root_component_config",
-    "inner_components",
-    "internal_event_mappings",
-    "script",
-    "source_script",
-    "required_translation_keys",
-    "required_translations",
-    "required_sys_props",
-    "externals",
-    "composition",
-    "data",
-    "props",
-    "layout",
-    "interactions",
-    "events", 
-    "state_properties"];
+var getComponents = function() {
+    var query = "category=component^extendsISEMPTY^sys_scope.scopeSTARTSWITHx_" + getCompanyCode();
+    var results = {
+        totalComponents: 0,
+        components: []
+    };
 
-var isExcludedField = function(fieldName) {
-    return (excludedFields.indexOf(fieldName) != -1);
-};
+    results.totalComponents = (function(){
+        var gr = new GlideAggregate("sys_ux_macroponent");
+        gr.setWorkflow(false);
+        gr.addEncodedQuery(query);
+        gr.addAggregate("COUNT");
+        gr.query();
 
-var getRecords = function(table, query){
-    var records = [];
-
-    var gr = new GlideRecord(table);
-
-    if(!gr.isValid())
-        return records;
-
+        return (gr.next() ? parseInt(gr.getAggregate("COUNT")) : 0);
+    })();
+    
+    var gr = new GlideRecord("sys_ux_macroponent");
     gr.setWorkflow(false);
-    gr.setLimit(5000);
+    gr.setLimit(180);
     gr.addEncodedQuery(query);
     gr.query();
 
-    var util = new GlideRecordUtil();
-    var fieldList = [];
-
     while(gr.next()){
-        var record = { scope: gr.sys_scope.scope.toString() };
-
-        if(fieldList.length == 0)
-            fieldList = util.getFields(gr).sort();
-
-        for(var i = 0, fields = fieldList.length;i < fields;i++){
-            var fieldName = fieldList[i];
-
-            if(!isExcludedField(fieldName))
-                record[fieldName] = gr.getValue(fieldName);
-        }
-
-        records.push(record);
+        results.components.push({
+            id: gr.getUniqueValue(),
+            name: gr.getValue("name"),
+            category: gr.getValue("category"),
+            createdOn: new GlideDateTime(gr.getValue("sys_created_on")).getDate().getValue(),
+            createdBy: gr.getValue("sys_created_by"),
+            scope: gr.sys_scope.scope.toString()
+        });
     }
 
-    return records;
-
-};
-
-var getComponentData = function(){
-    var companyCode = getCompanyCode();
-
-    if(companyCode == null)
-        return;
-
-    var query = "sys_scope.scopeSTARTSWITHx_" + companyCode;
-    var tables = ["sys_ux_macroponent", "sys_ux_lib_component", "sys_uib_toolbox_component", "sys_ux_lib_source_script"];
-    var results = {};
-
-    tables.forEach(function(table){
-        results[table] = getRecords(table, query);
-    });
-
     return results;
+
 };
 
 
 (function(){
 
-	var auditResults = {
-        tableExists: GlideTableDescriptor.isValid("sys_ux_macroponent"),
-        companyCode: getCompanyCode(),
-		components: getComponentData()
-	};
+	var results = getComponents();
 
-	gs.print(JSON.stringify(auditResults));
+	gs.print(JSON.stringify(results));
 
 })();

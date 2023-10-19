@@ -101,7 +101,7 @@ var parseNowExperiences = (distinct) => {
                             adminPanelTable: (ex.adminPanel != undefined ? ex.adminPanel.table : ""),
                             adminPanelName: (ex.adminPanel != undefined ? ex.adminPanel.name : ""),
                             adminPanelLandingPath: (ex.adminPanel != undefined ? ex.adminPanel.landingPath : ""),
-                            adminPanelAppRoutesCount: (ex.adminPanel != undefined ?  ex.adminPanel.appRoutes.length : 0),
+                            adminPanelAppRoutesCount: (ex.adminPanel != undefined && ex.adminPanel.appRoutes != null ?  ex.adminPanel.appRoutes.length : 0),
                             appShellId: (ex.appShell != undefined ?  ex.appShell.id : ""),
                             appShellName: (ex.appShell != undefined ?  ex.appShell.name : ""),
                             appShellCategory: (ex.appShell != undefined ?  ex.appShell.category : ""),

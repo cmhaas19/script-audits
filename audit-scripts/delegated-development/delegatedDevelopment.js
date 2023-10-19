@@ -229,7 +229,7 @@ var getDelegatedDevelopmentStats = function() {
             var user = scope[userId];
             var shortName = "u" + userIndex.toString();            
 
-            var allMetadataExits = (user["043a115e679112006cc2956c33415a36"] != undefined);
+            var allMetadataExists = (user["043a115e679112006cc2956c33415a36"] != undefined);
 
             //
             // Re-build the results
@@ -238,17 +238,17 @@ var getDelegatedDevelopmentStats = function() {
                 var permission = PERMISSION_SETS[permissionId];
 
                 if(permission) {
-                    if(permission.type == "permission_restricted" && allMetadataExits) {
-                        continue;
-                    }
-
                     if(cleanResults[scopeName] == undefined)
                         cleanResults[scopeName] = {};
 
                     if(cleanResults[scopeName][shortName] == undefined)
                         cleanResults[scopeName][shortName] = {};
 
-                    cleanResults[scopeName][shortName][permission.id] = 1;
+                    if(permission.type == "permission_restricted" && allMetadataExists) {
+                        cleanResults[scopeName][shortName]["0"] = 1;
+                    } else {
+                        cleanResults[scopeName][shortName][permission.id] = 1;
+                    }
                 }
             }
         }

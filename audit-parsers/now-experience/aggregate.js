@@ -14,7 +14,7 @@ const components = require('./components');
 
     Promise.all([ 
         nowExperiences.getExperiences(isDistinct), 
-        legacyWorkspaces.getWorkspaces(isDistinct),
+        //legacyWorkspaces.getWorkspaces(isDistinct),
         servicePortals.getPortals(isDistinct),
         components.getComponents(isDistinct)
 

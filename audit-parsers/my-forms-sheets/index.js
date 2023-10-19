@@ -116,10 +116,6 @@ var process = () => {
                     if(record.formsInstalled || record.sheetsInstalled)
                         wsSummary.addStandardRow(row.instanceName, row.instance, record);
                 }
-
-                if(row.data && row.data.mySheets) {
-
-                }
             });
             
             wb.commit().then(() => {

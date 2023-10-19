@@ -21,30 +21,26 @@ var parseComponents = (distinct) => {
                 'Category',
                 'Scope',
                 'Created',
-                'Created YYYY-MM',
-                'Updated',
-                'Updated YYYY-MM'
+                'Created YYYY-MM'
             ];
 
             auditData.forEach((row) => { 
-                if(row.data && row.data.components && row.data.components.sys_ux_macroponent) {
-                    row.data.components.sys_ux_macroponent.forEach((c) => {
+                if(row.data && row.data.components) {
+                    row.data.components.forEach((c) => {
 
                         if(c.category == "component") {
                             var isProduction = common.isProductionInstance(row.instance);
                             
-                            if(!isDistinct || distinctComponents[c.sys_id] == undefined || (isProduction && distinctComponents[c.sys_id] === false)) {
-                                distinctComponents[c.sys_id] = isProduction;
+                            if(!isDistinct || distinctComponents[c.id] == undefined || (isProduction && distinctComponents[c.id] === false)) {
+                                distinctComponents[c.id] = isProduction;
     
                                 var component = {
-                                    id: c.sys_id,
+                                    id: c.id,
                                     name: c.name,
                                     category: c.category,
-                                    scope: c.sys_scope,
-                                    createdOn: c.sys_created_on,
-                                    createdOnMonthYear: moment(c.sys_created_on).format("YYYY-MM"),
-                                    updatedOn: c.sys_updated_on,
-                                    updatedOnMonthYear: moment(c.sys_updated_on).format("YYYY-MM")
+                                    scope: c.scope,
+                                    createdOn: c.createdOn,
+                                    createdOnMonthYear: moment(c.createdOn).format("YYYY-MM")
                                 };
         
                                 components.addRow(new Data.DataRow(row.instanceName, row.instance, component));

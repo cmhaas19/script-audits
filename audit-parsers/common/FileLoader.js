@@ -169,7 +169,7 @@ var loadFileWithInstancesAndAccounts = function(fileName) {
                                     isAppEngineSubscriber: false
                                 }
                             }
-                            console.log(`Could not find instance ${row.instanceName}`);
+                            //console.log(`Could not find instance ${row.instanceName}`);
                         }
                         row.instance = instance;
                     });
