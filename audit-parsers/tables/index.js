@@ -48,6 +48,7 @@ const moment = require("moment");
         var wb = new Audit.AuditWorkbook("custom-table-audit.xlsx");
 
         var ws = wb.addWorksheet("Summary");
+        var errors = wb.addWorksheet("Errors");
 
         ws.setStandardColumns([
             { header: 'Table Name', width: 20 },
@@ -61,48 +62,59 @@ const moment = require("moment");
             { header: 'Is Scoped', width: 20 }
         ]);
 
+        errors.setStandardColumns([
+            { header: 'Audit State', width: 12 },
+            { header: 'Error Description', width: 42 }
+        ]);
+
         auditData.forEach((row) => {
             var isProduction = (row.instance && row.instance.purpose == "Production");
 
-            if(isProduction && row.data && row.data.customTables) {
-                var customTables = row.data.customTables;
-                
-    
-                for(var tableName in customTables) {
-                    var table = customTables[tableName];    
-                    var exclude = false;          
+            if(isProduction) {
+                if(row.success === true && row.data && row.data.customTables) {
+                    var customTables = row.data.customTables;
+        
+                    for(var tableName in customTables) {
+                        var table = customTables[tableName];    
+                        var exclude = false;          
 
-                    var record = {
-                        tableName: tableName,
-                        createdOn: "",
-                        createdOnYearMonth: "",
-                        createdOnYear: "",
-                        parentTable: "",
-                        rootTable: "",
-                        fullPath: "",
-                        isGlobal: tableName.startsWith("u_"),
-                        isScoped: tableName.startsWith("x_")
-                    };
-    
-                    if(table.createdOn && table.createdOn.length) {
-                        record.createdOn = table.createdOn;
-                        record.createdOnYearMonth = moment(table.createdOn).format("YYYY-MM");
-                        record.createdOnYear = moment(table.createdOn).format("YYYY");
-                    } 
-    
-                    if(table.path && table.path.length) {
-                        record.parentTable = table.path[0];
-                        record.rootTable = table.path[table.path.length - 1];
-                        record.fullPath = table.path.join(" > ");
+                        var record = {
+                            tableName: tableName,
+                            createdOn: "",
+                            createdOnYearMonth: "",
+                            createdOnYear: "",
+                            parentTable: "",
+                            rootTable: "",
+                            fullPath: "",
+                            isGlobal: tableName.startsWith("u_"),
+                            isScoped: tableName.startsWith("x_")
+                        };
+        
+                        if(table.createdOn && table.createdOn.length) {
+                            record.createdOn = table.createdOn;
+                            record.createdOnYearMonth = moment(table.createdOn).format("YYYY-MM");
+                            record.createdOnYear = moment(table.createdOn).format("YYYY");
+                        } 
+        
+                        if(table.path && table.path.length) {
+                            record.parentTable = table.path[0];
+                            record.rootTable = table.path[table.path.length - 1];
+                            record.fullPath = table.path.join(" > ");
 
-                        table.path.forEach((tableName) => {
-                            if(EXCLUDED_PARENT_TABLES[tableName] != undefined)
-                                exclude = true;
-                        });
-                    } 
-    
-                    if(!exclude)
-                        ws.addStandardRow(row.instanceName, row.instance, record);
+                            table.path.forEach((tableName) => {
+                                if(EXCLUDED_PARENT_TABLES[tableName] != undefined)
+                                    exclude = true;
+                            });
+                        } 
+        
+                        if(!exclude)
+                            ws.addStandardRow(row.instanceName, row.instance, record);
+                    }
+                } else if(row.success == false) {
+                    errors.addStandardRow(row.instanceName, row.instance, {
+                        auditState: row.auditState, 
+                        errorDescription: row.errorDescription
+                    });
                 }
             }
         });

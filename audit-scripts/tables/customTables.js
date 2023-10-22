@@ -1,5 +1,5 @@
 
-var getCustomTables = function() {
+var getCustomTables = function(range) {
 
     var excludedTables = {};
     var excludedParentTables = {
@@ -39,6 +39,7 @@ var getCustomTables = function() {
     };
 
     var customTables = {};
+    var totalCustomTables = 0;
 
     //
     // Get m2m tables
@@ -85,20 +86,39 @@ var getCustomTables = function() {
     })();
 
     //
+    // Build the query
+    //
+    var query = "nameSTARTSWITHx_" + gs.getProperty("glide.appcreator.company.code");
+    query += "^ORnameSTARTSWITHu_";
+    query += "^scriptable_table=false^ORscriptable_tableISEMPTY";
+    query += "^nameNOT LIKEar_%";
+    query += "^nameNOT IN" + Object.keys(excludedTables).join(",");
+    query += "^super_class.nameNOT IN" + Object.keys(excludedParentTables).join(",");
+    query += "^ORsuper_classISEMPTY";
+
+    //
+    // Get the total count of custom tables
+    //
+    (function(){
+        var gr = new GlideAggregate("sys_db_object");
+        gr.setWorkflow(false);
+        gr.addAggregate("COUNT");
+        gr.addEncodedQuery(query);
+        gr.query();
+
+        totalCustomTables = (gr.next() ? parseInt(gr.getAggregate("COUNT")) : 0);
+
+    })();
+
+    //
     // Now get custom tables
     //
     (function(){
-        var query = "nameSTARTSWITHx_" + gs.getProperty("glide.appcreator.company.code");
-        query += "^ORnameSTARTSWITHu_";
-        query += "^scriptable_table=false^ORscriptable_tableISEMPTY";
-        query += "^nameNOT LIKEar_%";
-        query += "^nameNOT IN" + Object.keys(excludedTables).join(",");
-        query += "^super_class.nameNOT IN" + Object.keys(excludedParentTables).join(",");
-        query += "^ORsuper_classISEMPTY";
-
         var gr = new GlideRecord("sys_db_object");
         gr.addEncodedQuery(query);
         gr.setWorkflow(false);
+        gr.orderBy("sys_id");
+		gr.chooseWindow(range.start, range.end);
         gr.query();
 
         while(gr.next()) {
@@ -119,17 +139,25 @@ var getCustomTables = function() {
 
     return {
         companyCode: gs.getProperty("glide.appcreator.company.code"),
-        customTables: customTables,
-        customTableCount: Object.keys(customTables).length,
+        totalCustomTables: totalCustomTables,
         excludedCount: Object.keys(excludedTables).length,
-        parentExcludedCount: Object.keys(excludedParentTables).length
+        parentExcludedCount: Object.keys(excludedParentTables).length,
+        customTables: customTables,  
     };
 };
 
 
 (function(){
 
-	var auditResults = getCustomTables();
+    var ranges = {
+        r1: { start: 0, end: 400 },
+        r2: { start: 401, end: 800 },
+        r3: { start: 801, end: 1200 },
+        r4: { start: 1201, end: 1600 },
+        r5: { start: 1601, end: 2000 },
+    };
+
+	var auditResults = getCustomTables(ranges.r1);
 
 	gs.print(JSON.stringify(auditResults));
 
