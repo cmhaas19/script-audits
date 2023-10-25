@@ -2,6 +2,7 @@
 const Audit = require('../common/AuditWorkbook.js');
 const FileLoader = require('../common/FileLoader.js');
 const moment = require('moment');
+const path = require('path');
 const fs = require('fs');
 
 var loadAESFiles = () => {
@@ -253,6 +254,93 @@ var writeCustomAppsWorksheet = (workbook, combinedApps) => {
     return records;
 };
 
+
+var writeAggregates = (workbook) => {
+    var promise = new Promise((resolve, reject) => {
+
+        var fileName = path.join(__dirname, "/audit-files/aggregates.csv");
+
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+
+            var wsSummary = workbook.addWorksheet("Summary");
+            var wsSummaryByMonth = workbook.addWorksheet("Summary - By Month");
+
+            wsSummary.setColumns([
+                { header: 'Instance', width: 42 },
+                { header: 'Instance Purpose', width: 12 },
+                { header: 'Company', width: 42 },
+                { header: 'Account No.', width: 12 },
+                { header: 'Account Type', width: 17 },                
+                { header: 'App Engine Subscriber', width: 22 },
+                { header: 'Total AES Apps', width: 20 },
+                { header: 'Total Custom Apps (sys_app)', width: 20 },
+                { header: 'Total Store Apps (sys_store_app)', width: 20 }
+            ]);
+
+            wsSummaryByMonth.setColumns([
+                { header: 'Instance', width: 42 },
+                { header: 'Instance Purpose', width: 12 },
+                { header: 'Company', width: 42 },
+                { header: 'Account No.', width: 12 },
+                { header: 'Account Type', width: 17 },                
+                { header: 'App Engine Subscriber', width: 22 },
+                { header: 'Created On YYYY-MM', width: 22 },
+                { header: 'Created On YYYY', width: 22 },
+                { header: 'AES Apps', width: 20 },
+                { header: 'Custom Apps (sys_app)', width: 20 },
+                { header: 'Store Apps (sys_store_app)', width: 20 }
+            ]);
+
+            auditData.forEach((row) => {
+                if(row.data && row.data.apps) {
+                    var totalApps = { aes: 0, app: 0, sApp: 0 };
+                    var customer = row.instance.account;
+
+                    for(var month in row.data.apps) {
+                        var appCounts = row.data.apps[month];
+                        
+                        totalApps.aes += appCounts.aes;
+                        totalApps.app += appCounts.app;
+                        totalApps.sApp += appCounts.sApp;
+                        
+                        wsSummaryByMonth.addRow({
+                            instanceName: row.instanceName,
+                            purpose: row.instance.purpose,
+                            company: customer.accountName,
+                            accountNo: customer.accountNo,
+                            accountType: customer.accountType,                        
+                            isAppEngineSubscriber: customer.isAppEngineSubscriber,
+                            createdOnYearMonth: moment(month, "M/YYYY").format("YYYY-MM"),
+                            createdOnYear: moment(month, "M/YYYY").format("YYYY"),
+                            aes: appCounts.aes,
+                            customApps: appCounts.app,
+                            storeApps: appCounts.sApp
+                        });
+                    }
+                    
+                    wsSummary.addRow({
+                        instanceName: row.instanceName,
+                        purpose: row.instance.purpose,
+                        company: customer.accountName,
+                        accountNo: customer.accountNo,
+                        accountType: customer.accountType,                        
+                        isAppEngineSubscriber: customer.isAppEngineSubscriber,
+                        aes: totalApps.aes,
+                        customApps: totalApps.app,
+                        storeApps: totalApps.sApp
+                    });
+                }
+            });
+            
+            console.log("Completed writing aggregate summaries");
+            resolve();
+        });
+
+    });
+
+    return promise;
+};
+
 (function(){
 
     FileLoader.loadInstancesAndAccounts()
@@ -261,10 +349,10 @@ var writeCustomAppsWorksheet = (workbook, combinedApps) => {
 
             var workbook = new Audit.AuditWorkbook("./custom-apps.xlsx");
 
-            var records = writeCustomAppsWorksheet(workbook, combinedApps);
+            writeCustomAppsWorksheet(workbook, combinedApps);
 
-            // TODO: Write Summary Worksheet using records
-
-            workbook.commit().then(() => console.log("Finished!"));
+            writeAggregates(workbook).then(() => {
+                workbook.commit().then(() => console.log("Finished!"));
+            });
         });
 })();

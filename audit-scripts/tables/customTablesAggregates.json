@@ -1,0 +1,36 @@
+{
+   "companyCode":"snc",
+   "totalCustomTables":126,
+   "months":{
+      "02/2023":{
+         "scoped":69,
+         "global":0,
+         "total":69
+      },
+      "04/2023":{
+         "scoped":27,
+         "global":0,
+         "total":27
+      },
+      "03/2023":{
+         "scoped":25,
+         "global":0,
+         "total":25
+      },
+      "07/2023":{
+         "scoped":1,
+         "global":0,
+         "total":1
+      },
+      "01/2022":{
+         "scoped":3,
+         "global":0,
+         "total":3
+      },
+      "10/2023":{
+         "scoped":1,
+         "global":0,
+         "total":1
+      }
+   }
+}
