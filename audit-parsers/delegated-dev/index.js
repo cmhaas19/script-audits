@@ -120,6 +120,7 @@ var process = () => {
     
                 ws.columns = [
                     { header: 'Permissions', width: 20 },
+                    { header: 'Includes All Metadata', width: 20 },
                     { header: '# of Users', width: 20 },
                     { header: '# of Apps', width: 20 },
                     { header: '# of Customers', width: 20 }
@@ -136,6 +137,7 @@ var process = () => {
 
                         for(var scopeId in row.data.delegatedDeveloperStats) {
                             var scope = row.data.delegatedDeveloperStats[scopeId];
+                            var hasAllMetadata = false;
 
                             for(var userId in scope) {
                                 var user = scope[userId];
@@ -143,6 +145,9 @@ var process = () => {
 
                                 for(var permissionId in user) {
                                     combination.push(PERMISSION_SETS[permissionId]);
+
+                                    if(permissionId == 0)
+                                        hasAllMetadata = true;
                                 }
 
                                 combination.sort();
@@ -153,6 +158,7 @@ var process = () => {
                                 combinations[combination].scopes[scopeId] = true;
                                 combinations[combination].accounts[accountNo] = true;
                                 combinations[combination].users++;
+                                combinations[combination].hasAllMetadata = hasAllMetadata;
                             }
                         }
                     }
@@ -161,6 +167,7 @@ var process = () => {
                 for(var combo in combinations) {
                     ws.addRow([
                         combo,
+                        combinations[combo].hasAllMetadata,
                         combinations[combo].users,
                         Object.keys(combinations[combo].scopes).length,
                         Object.keys(combinations[combo].accounts).length

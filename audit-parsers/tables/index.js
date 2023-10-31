@@ -202,15 +202,93 @@ var writeSummary = (workbook, instances, combined) => {
     return promise;
 };
 
+var writeAggregates = (workbook) => {
+    var promise = new Promise((resolve, reject) => {
+
+        var fileName = path.join(__dirname, "/audit files/aggregates.csv");
+
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+
+            var wsSummary = workbook.addWorksheet("Summary");
+            var wsSummaryByMonth = workbook.addWorksheet("Summary - By Month");
+
+            wsSummary.setColumns([
+                { header: 'Instance', width: 42 },
+                { header: 'Instance Purpose', width: 12 },
+                { header: 'Company', width: 42 },
+                { header: 'Account No.', width: 12 },
+                { header: 'Account Type', width: 17 },                
+                { header: 'App Engine Subscriber', width: 22 },
+                { header: 'Total Custom Tables', width: 20 }
+            ]);
+
+            wsSummaryByMonth.setColumns([
+                { header: 'Instance', width: 42 },
+                { header: 'Instance Purpose', width: 12 },
+                { header: 'Company', width: 42 },
+                { header: 'Account No.', width: 12 },
+                { header: 'Account Type', width: 17 },                
+                { header: 'App Engine Subscriber', width: 22 },
+                { header: 'Created On YYYY-MM', width: 22 },
+                { header: 'Created On YYYY', width: 22 },
+                { header: 'Created On Quarter', width: 22 },
+                { header: 'Scoped Tables', width: 20 },
+                { header: 'Global Tables', width: 20 },
+                { header: 'Total Tables', width: 20 }
+            ]);
+
+            auditData.forEach((row) => {
+                if(row.data && row.data.months) {
+                    var customer = row.instance.account;
+
+                    for(var month in row.data.months) {
+                        var tables = row.data.months[month];
+                        
+                        wsSummaryByMonth.addRow({
+                            instanceName: row.instanceName,
+                            purpose: row.instance.purpose,
+                            company: customer.accountName,
+                            accountNo: customer.accountNo,
+                            accountType: customer.accountType,                        
+                            isAppEngineSubscriber: customer.isAppEngineSubscriber,
+                            createdOnYearMonth: moment(month, "M/YYYY").format("YYYY-MM"),
+                            createdOnYear: moment(month, "M/YYYY").format("YYYY"),
+                            createdOnQuarter: `${moment(month, "M/YYYY").format("YYYY")}-Q${moment(month, "M/YYYY").quarter()}`,
+                            scoped: tables.scoped,
+                            global: tables.global,
+                            total: tables.total
+                        });
+                    }
+                    
+                    wsSummary.addRow({
+                        instanceName: row.instanceName,
+                        purpose: row.instance.purpose,
+                        company: customer.accountName,
+                        accountNo: customer.accountNo,
+                        accountType: customer.accountType,                        
+                        isAppEngineSubscriber: customer.isAppEngineSubscriber,
+                        total: row.data.totalCustomTables
+                    });
+                }
+            });
+            
+            console.log("Completed writing aggregate summaries");
+            resolve();
+        });
+
+    });
+
+    return promise;
+};
+
 (function(){
 
     FileLoader.loadInstancesAndAccounts().then((instances) => {
         loadFiles(instances).then((combined) => {
             var workbook = new Audit.AuditWorkbook("./custom-table-results.xlsx");
 
-            writeDetails(workbook, instances, combined);
-
-            writeSummary(workbook, instances, combined).then(() => {
+            writeAggregates(workbook).then(() => {
+                writeDetails(workbook, instances, combined);
                 workbook.commit().then(() => console.log("Finished!"));
             });
         });

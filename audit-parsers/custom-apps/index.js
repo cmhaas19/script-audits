@@ -341,6 +341,52 @@ var writeAggregates = (workbook) => {
     return promise;
 };
 
+var writeAppCounts = (workbook) => {
+    var promise = new Promise((resolve, reject) => {
+
+        var fileName = path.join(__dirname, "/audit-files/app-counts.csv");
+
+        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
+
+            var ws = workbook.addWorksheet("App Counts");
+
+            ws.setStandardColumns([
+                { header: 'Vendor Prefix', width: 42 },
+                { header: 'Custom Apps - All', width: 12 },
+                { header: 'Custom Apps - Prefixed', width: 42 },
+                { header: 'Custom Apps - Difference', width: 42 },
+                { header: 'Custom Apps - Not Equal', width: 42 },
+                { header: 'Store Apps', width: 12 },
+                { header: 'Vendor Apps', width: 17 },                
+                { header: 'Calculated Total Apps', width: 22 }
+            ]);
+
+            auditData.forEach((row) => {
+                if(row.data && row.data.calculatedTotalApps) {
+                    var appCounts = row.data;
+
+                    ws.addStandardRow(row.instanceName, row.instance, {
+                        prefix: appCounts.vendorPrefix,
+                        customAppsAll: appCounts.customAppsAll,
+                        customAppsPrefixed: appCounts.customAppsPrefixed,
+                        customAppsDifference: (appCounts.customAppsAll - appCounts.customAppsPrefixed),
+                        notEqual: (appCounts.customAppsAll !=  appCounts.customAppsPrefixed),
+                        storeApps: appCounts.storeApps,
+                        vendorApps: appCounts.vendorApps,
+                        calculatedApps: appCounts.calculatedTotalApps,
+                    });
+                }
+            });
+            
+            console.log("Completed writing app counts");
+            resolve();
+        });
+
+    });
+
+    return promise;
+};
+
 (function(){
 
     FileLoader.loadInstancesAndAccounts()
@@ -352,7 +398,9 @@ var writeAggregates = (workbook) => {
             writeCustomAppsWorksheet(workbook, combinedApps);
 
             writeAggregates(workbook).then(() => {
-                workbook.commit().then(() => console.log("Finished!"));
+                writeAppCounts(workbook).then(() => {
+                    workbook.commit().then(() => console.log("Finished!"));
+                });
             });
         });
 })();

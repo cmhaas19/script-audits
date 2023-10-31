@@ -49,7 +49,7 @@ var getCustomApplications = function() {
             var gr = new GlideAggregate('sys_store_app');
             gr.setWorkflow(false);
             gr.addQuery('scope', 'STARTSWITH', vendorPrefix);
-            gr.addNullQuery('vendor').addOrCondition('vendor', '!=', 'ServiceNow');
+            gr.addOrCondition('scope', '=', 'global');
             gr.addAggregate('COUNT');
             gr.query();
     
