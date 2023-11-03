@@ -5,16 +5,17 @@ const moment = require('moment');
 const path = require('path');
 const fs = require('fs');
 
-var loadAESFiles = () => {
+var loadAESApps = () => {
     var promise = new Promise((resolve, reject) => {
         var combined = {};
+        var ids = {};
         var totalApps = 0;
 
         Promise.all([ 
-            FileLoader.parseCsvFile("./audit-files/aes-r1.csv"), 
-            FileLoader.parseCsvFile("./audit-files/aes-r2.csv"),
-            FileLoader.parseCsvFile("./audit-files/aes-r3.csv"),
-            FileLoader.parseCsvFile("./audit-files/aes-r4.csv")
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/aes-r1.csv"), 
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/aes-r2.csv"),
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/aes-r3.csv"),
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/aes-r4.csv")
     
         ]).then((dataSets) => {
             dataSets.forEach((dataSet) => { 
@@ -28,12 +29,17 @@ var loadAESFiles = () => {
                                 continue;
 
                             combined[row.instanceName][id] = {
-                                createdOn: row.data.apps[id],
-                                installedOn: "",
+                                instance: row.instance,
+                                createdOn: moment(row.data.apps[id]).format("YYYY-MM"),
+                                scope: "",
+                                ide: "",
+                                vendorCode: "",
                                 isSysApp: false,
                                 isSysStoreApp: false,
                                 isAESApp: true
                             };
+
+                            ids[id] = true;
 
                             totalApps++;
                         }
@@ -42,365 +48,363 @@ var loadAESFiles = () => {
             });
     
             console.log(`Found ${totalApps} AES Apps`);
-            resolve(combined);
+            resolve({ combined, ids });
         });
     });
 
     return promise;
 };
 
-var loadSysAppFiles = () => {
-    var promise = new Promise((resolve, reject) => {
-        var combined = {};
-        var totalApps = 0;
+var writeDistinctAESWorksheet = (wb, instances, aesApps, customAppIds) => {
+    var distinctApps = {};
+   
+    //
+    // First loop to de-dup
+    //
+    for(var instanceName in aesApps) {
+        var apps = aesApps[instanceName];
 
-        Promise.all([ 
-            FileLoader.parseCsvFile("./audit-files/sys-app-r1.csv"), 
-            FileLoader.parseCsvFile("./audit-files/sys-app-r2.csv"),
-            FileLoader.parseCsvFile("./audit-files/sys-app-r3.csv"),
-            FileLoader.parseCsvFile("./audit-files/sys-app-r4.csv")
-    
-        ]).then((dataSets) => {
-            dataSets.forEach((dataSet) => { 
-                dataSet.forEach((row) => {
-                    if(row.data && row.data.customApps && row.data.customApps.apps) {
-                        if(combined[row.instanceName] == undefined)
-                            combined[row.instanceName] = {};
+        for(var id in apps) {
+            var currentApp = apps[id];
 
-                        for(var id in row.data.customApps.apps) {
-                            var app = row.data.customApps.apps[id];
+            var app = {
+                id: id,
+                stillExists: (customAppIds[id] != undefined),
+                account: currentApp.instance.account,
+                instanceCount: 0,
+                createdOn: currentApp.createdOn,
+                createdOnYear: moment(currentApp.createdOn).format("YYYY"),
+                createdOnQtr: `${moment(currentApp.createdOn, "YYYY-MM").format("YYYY")}-Q${moment(currentApp.createdOn, "YYYY-MM").quarter()}`
+            };
 
-                            combined[row.instanceName][id] = {
-                                createdOn: app,
-                                installedOn: "",
-                                isSysApp: true,
-                                isSysStoreApp: false,
-                                isAESApp: false
-                            };
+            if(distinctApps[id] == undefined)
+                distinctApps[id] = app;
 
-                            totalApps++;
-                        }
-                    }
-                })
-            });
-    
-            console.log(`Found ${totalApps} Sys Apps`);
-            resolve(combined);
-        });
-    });
+            distinctApps[id].instanceCount++;
+        }
+    }
 
-    return promise;
-};
+    //
+    // Now write the de-duped data set
+    //
+    var ws = wb.addWorksheet("AES Apps - Distinct");
 
-var loadSysStoreAppFiles = () => {
-    var promise = new Promise((resolve, reject) => {
-        var combined = {};
-        var totalApps = 0;
-
-        Promise.all([ 
-            FileLoader.parseCsvFile("./audit-files/sys-store-app-r1.csv"), 
-            FileLoader.parseCsvFile("./audit-files/sys-store-app-r2.csv"),
-            FileLoader.parseCsvFile("./audit-files/sys-store-app-r3.csv"),
-            FileLoader.parseCsvFile("./audit-files/sys-store-app-r4.csv")
-    
-        ]).then((dataSets) => {
-            dataSets.forEach((dataSet) => { 
-                dataSet.forEach((row) => {
-                    if(row.data && row.data.customApps && row.data.customApps.apps) {
-                        if(combined[row.instanceName] == undefined)
-                            combined[row.instanceName] = {};
-
-                        for(var id in row.data.customApps.apps) {
-                            var app = row.data.customApps.apps[id];
-
-                            combined[row.instanceName][id] = {
-                                createdOn: app.c,
-                                installedOn: app.i,
-                                isSysApp: false,
-                                isSysStoreApp: true,
-                                isAESApp: false
-                            };
-
-                            totalApps++;
-                        }
-                    }
-                })
-            });
-    
-            console.log(`Found ${totalApps} Sys Store Apps`);
-            resolve(combined);
-        });
-    });
-
-    return promise;
-};
-
-var loadAllFiles = (instances) => {
-    var promise = new Promise((resolve, reject) => {
-        var combinedApps = {};
-
-        Promise.all([
-            loadAESFiles(),
-            loadSysAppFiles(),
-            loadSysStoreAppFiles()
-
-        ]).then((dataSets) => {
-            dataSets.forEach((dataSet) => { 
-                for(var instanceName in dataSet) {
-                    var instance = instances[instanceName];
-
-                    if(instance == undefined)
-                        continue;
-
-                    var accountNo = instance.accountNo;
-                    var isProduction = (instance.purpose == "Production");
-
-                    if(combinedApps[accountNo] == undefined)
-                        combinedApps[accountNo] = { instance: instance, apps: {} };
-
-                    for(var id in dataSet[instanceName]) {
-                        var app = dataSet[instanceName][id];
-
-                        if(combinedApps[accountNo].apps[id] == undefined)
-                            combinedApps[accountNo].apps[id] = { isAESApp: false, isSysApp: false, isSysStoreApp: false, createdOn: "", installedOn: "", isProduction: false };
-
-                        var existingApp = combinedApps[accountNo].apps[id];
-
-                        existingApp.isAESApp = (existingApp.isAESApp || app.isAESApp);
-                        existingApp.isSysApp = (existingApp.isSysApp || app.isSysApp);
-                        existingApp.isSysStoreApp = (existingApp.isSysStoreApp || app.isSysStoreApp);
-                        existingApp.isProduction = (existingApp.isProduction || isProduction);
-
-                        if(existingApp.createdOn.length == 0)
-                            existingApp.createdOn = app.createdOn;
-
-                        if(existingApp.installedOn.length == 0)
-                            existingApp.installedOn = app.installedOn;
-                    }
-                }
-            });
-
-            fs.writeFile('custom-apps.json', JSON.stringify(combinedApps, null, 2), () => {
-                console.log("Logged json to custom-apps.json file");
-                resolve(combinedApps);
-            });
-        });        
-	});
-
-	return promise;
-};
-
-var writeCustomAppsWorksheet = (workbook, combinedApps) => {
-    var worksheet = workbook.addWorksheet("Custom Apps");
-    var records = [];
-
-    worksheet.setColumns([
+    ws.setColumns([
         { header: 'Company', width: 42 },
         { header: 'Account No.', width: 12 },
         { header: 'Account Type', width: 17 },
-        //{ header: 'NNACV', width: 17 },
         { header: 'Primary Rep', width: 22 },
         { header: 'Solution Consultant', width: 23 },
         { header: 'App Engine Subscriber', width: 22 },
         { header: 'App ID', width: 22 },
-        { header: 'Is AES App', width: 22 },
-        { header: 'Is Sys App', width: 22 },
-        { header: 'Is Sys Store App', width: 22 },
-        { header: 'Is Production Instance', width: 22 },
-        { header: 'Is Real App', width: 22 },
-        { header: 'Created On', width: 22 },
+        { header: 'Still Exists?', width: 22 },
+        { header: 'No. of Instances', width: 22 },
         { header: 'Created On YYYY-MM', width: 22 },
         { header: 'Created On YYYY', width: 22 },
-        { header: 'Installed On', width: 22 },
-        { header: 'Installed On YYYY-MM', width: 22 },
-        { header: 'Installed On YYYY', width: 22 },
+        { header: 'Created On QTR', width: 22 }
     ]);
+    
+    for(var id in distinctApps) {
+        var app = distinctApps[id];
+        
+        ws.addRow({
+            company: app.account.accountName,
+            accountNo: app.account.accountNo,
+            accountType: app.account.accountType,
+            rep: app.account.primarySalesRep,
+            sc: app.account.solutionConsultant,                        
+            isAppEngineSubscriber: app.account.isAppEngineSubscriber,
+            id,
+            stillExists: app.stillExists,
+            instanceCount: app.instanceCount,
+            createdOn: app.createdOn,
+            createdOnYear: app.createdOnYear,
+            createdOnQtr: app.createdOnQtr
+        });
+    }
 
-    for(var accountNo in combinedApps) {
-        var row = combinedApps[accountNo];
-        var customer = row.instance.account;
+};
 
-        for(var id in row.apps) {
-            var app = row.apps[id];
+var loadCustomApps = (aesAppIds) => {
+    var promise = new Promise((resolve, reject) => {
+        var combined = {};
+        var ids = {};
+        var totalApps = { custom: 0, store: 0, aes: 0 };
 
-            var record = {
-                company: customer.accountName,
-                accountNo: accountNo,
-                accountType: customer.accountType,
-                //acv: customer.totalACV,
-                primaryRep: customer.primarySalesRep,
-                solutionConsultant: customer.solutionConsultant,
-                isAppEngineSubscriber: customer.isAppEngineSubscriber,
-                appId: id,
+        Promise.all([ 
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/custom-apps-r1.csv"), 
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/custom-apps-r2.csv"),
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/custom-apps-r3.csv"),
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/custom-apps-r4.csv"), 
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/custom-apps-r5.csv"),
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/custom-apps-r6.csv"),
+            FileLoader.loadFileWithInstancesAndAccounts("./audit-files/custom-apps-r7.csv")
+    
+        ]).then((dataSets) => {
+            dataSets.forEach((dataSet) => { 
+                dataSet.forEach((row) => {
+                    if(row.data && row.data.apps) {
+                        if(combined[row.instanceName] == undefined)
+                            combined[row.instanceName] = {};
+
+                        for(var className in row.data.apps) {
+                            for(var id in row.data.apps[className]) {
+                                var app = row.data.apps[className][id];
+
+                                var customApp = {
+                                    instance: row.instance,
+                                    createdOn: app.c,
+                                    scope: app.s,
+                                    scopePrefix: "",
+                                    ide: (app.i != undefined ? app.i : ""),
+                                    prefix: "",
+                                    vendorPrefix: "",
+                                    scopeMatchesPrefix: true,
+                                    isSysApp: (className == "sys_app"),
+                                    isSysStoreApp: (className == "sys_store_app"),
+                                    isAESApp: (aesAppIds[id] != undefined),
+                                    isProduction: (row.instance.purpose == "Production"),
+                                    isGlobal: (app.s == "global"),
+                                    isPDI: false
+                                };
+
+                                if(row.data.code.length > 0)
+                                    customApp.vendorPrefix = `x_${row.data.code}_`;
+
+                                if(customApp.scope.length > 0 && customApp.scope.indexOf("_") != -1)
+                                    customApp.prefix = customApp.scope.substring(0, customApp.scope.indexOf("_"));
+
+                                if(customApp.scope.length > 0 && customApp.scope.toLowerCase() != "global")
+                                    customApp.scopeMatchesPrefix = customApp.scope.startsWith(customApp.vendorPrefix);
+
+                                if(customApp.scope.length > 0 && customApp.scope.startsWith("x_"))
+                                    customApp.scopePrefix = customApp.scope.substring(0, customApp.scope.indexOf("_", 2)) + "_";
+
+                                if(customApp.isAESApp && customApp.ide.length == 0)
+                                    customApp.ide = "AES*";
+
+                                if(!customApp.isAESApp && customApp.ide == "AES")
+                                    customApp.isAESApp = true;
+
+                                if(customApp.scope.startsWith("x_")) {                                    
+                                    var index = customApp.scope.indexOf("_", 2);
+                                    var vendorCodeFromScope = customApp.scope.substring(2, index);
+
+                                    if(vendorCodeFromScope.length > 0 && !customApp.scopeMatchesPrefix) {
+                                        customApp.isPDI = !isNaN(vendorCodeFromScope);
+
+                                        /* if(customApp.isPDI)
+                                            console.log(`Instance with code ${row.data.code} on customer instance ${row.instanceName}, customer ${row.instance.account.accountName} has an app with a prefix of ${parsedVendorCode}`);
+                                        */
+                                    }
+                                }
+
+                                combined[row.instanceName][id] = customApp;
+
+                                ids[id] = true;
+
+                                totalApps.custom += (customApp.isSysApp ? 1 : 0);
+                                totalApps.store += (customApp.isSysStoreApp ? 1 : 0);
+                                totalApps.aes += (customApp.isAESApp ? 1 : 0);
+                            }
+                        }
+                    }
+                });
+            });
+    
+            console.log(`Found ${totalApps.custom} Sys Apps (${totalApps.aes} are AES apps), ${totalApps.store} Store Apps, ${totalApps.custom + totalApps.store} Total Apps`);
+            resolve({ combined, ids });
+        });
+    });
+
+    return promise;
+};
+
+var writeCustomAppsWorksheets = (wb, instances, customApps) => {
+    var distinctApps = {};
+
+    (function(){
+        var ws = wb.addWorksheet("Custom Apps");
+
+        ws.setStandardColumns([
+            { header: 'App ID', width: 22 },
+            { header: 'Scope Prefix', width: 22 },
+            { header: 'Vendor Prefix', width: 22 },
+            { header: 'Scope Vendor Prefix', width: 22 },
+            { header: 'Scope', width: 22 },
+            { header: 'Scope Matches Vendor Prefix', width: 22 },
+            { header: 'Is Global', width: 22 },
+            { header: 'Is PDI', width: 22 },
+            { header: 'IDE Created', width: 22 },
+            { header: 'Is AES App', width: 22 },
+            { header: 'Is Sys App', width: 22 },
+            { header: 'Is Sys Store App', width: 22 },
+            { header: 'Created On YYYY-MM', width: 22 },
+            { header: 'Created On YYYY', width: 22 },
+            { header: 'Created On QTR', width: 22 }
+        ]);
+
+        for(var instanceName in customApps) {
+            var apps = customApps[instanceName];
+    
+            for(var id in apps) {
+                var app = {
+                    account: apps[id].instance.account,
+                    id: id,
+                    instanceCount: 0,
+                    accounts: { },
+                    createdOn: apps[id].createdOn,
+                    createdOnYear: moment(apps[id].createdOn).format("YYYY"),
+                    createdOnQtr: `${moment(apps[id].createdOn, "YYYY-MM").format("YYYY")}-Q${moment(apps[id].createdOn, "YYYY-MM").quarter()}`,
+                    prefix: apps[id].prefix,
+                    vendorPrefix: apps[id].vendorPrefix,
+                    scopePrefix: apps[id].scopePrefix,
+                    scopeMatchesPrefix: apps[id].scopeMatchesPrefix,
+                    isGlobal: apps[id].isGlobal,
+                    ide: apps[id].ide,
+                    scope: apps[id].scope,
+                    isSysApp: apps[id].isSysApp,
+                    isSysStoreApp: apps[id].isSysStoreApp,
+                    isAESApp: apps[id].isAESApp,
+                    isProduction: apps[id].isProduction,
+                    isPDI: apps[id].isPDI
+                };
+
+                ws.addStandardRow(instanceName, apps[id].instance, {
+                    id,
+                    prefix: app.prefix,
+                    vendorPrefix: app.vendorPrefix,
+                    scopePrefix: app.scopePrefix,
+                    scope: app.scope,
+                    scopeMatchesPrefix: app.scopeMatchesPrefix,
+                    isGlobal: app.isGlobal,
+                    isPDI: app.isPDI,
+                    ide: app.ide,
+                    isAESApp: app.isAESApp,
+                    isSysApp: app.isSysApp,
+                    isSysStoreApp: app.isSysStoreApp,
+                    createdOn: app.createdOn,
+                    createdOnYear: app.createdOnYear,
+                    createdOnQtr: app.createdOnQtr
+                });
+    
+                if(distinctApps[id] == undefined)
+                    distinctApps[id] = app;
+                
+                var existingApp = distinctApps[id];
+    
+                //
+                // Update any fields based on this record
+                //
+                existingApp.instanceCount++;
+                existingApp.accounts[app.account.accountNo] = true;
+                existingApp.isSysApp = (existingApp.isSysApp || app.isSysApp);
+                existingApp.isSysStoreApp = (existingApp.isSysStoreApp || app.isSysStoreApp);
+                existingApp.isAESApp = (existingApp.isAESApp || app.isAESApp);
+                existingApp.isProduction = (existingApp.isProduction || app.isProduction);
+                existingApp.isGlobal = (existingApp.isGlobal || app.isGlobal);
+            }
+        }
+
+    })();
+
+    //
+    // Now write the de-duped data set
+    //
+    (function(){
+        var ws = wb.addWorksheet("Custom Apps - Distinct");
+
+        ws.setColumns([
+            { header: 'Company', width: 42 },
+            { header: 'Account No.', width: 12 },
+            { header: 'Account Type', width: 17 },
+            { header: 'Primary Rep', width: 22 },
+            { header: 'Solution Consultant', width: 23 },
+            { header: 'App Engine Subscriber', width: 22 },
+            { header: 'App ID', width: 22 },
+            { header: 'Scope Prefix', width: 22 },
+            { header: 'Vendor Prefix', width: 22 },
+            { header: 'Scope Vendor Prefix', width: 22 },
+            { header: 'Scope', width: 22 },
+            { header: 'Scope Matches Vendor Prefix', width: 22 },
+            { header: 'Is Global', width: 22 },
+            { header: 'Is PDI', width: 22 },
+            { header: 'No. of Instances', width: 22 },
+            { header: 'No. of Accounts', width: 22 },
+            { header: 'IDE Created', width: 22 },
+            { header: 'Is AES App', width: 22 },
+            { header: 'Is Sys App', width: 22 },
+            { header: 'Is Sys Store App', width: 22 },
+            { header: 'Is Production Instance', width: 22 },
+            { header: 'Created On YYYY-MM', width: 22 },
+            { header: 'Created On YYYY', width: 22 },
+            { header: 'Created On QTR', width: 22 }
+        ]);
+        
+        for(var id in distinctApps) {
+            var app = distinctApps[id];
+            
+            ws.addRow({
+                company: app.account.accountName,
+                accountNo: app.account.accountNo,
+                accountType: app.account.accountType,
+                rep: app.account.primarySalesRep,
+                sc: app.account.solutionConsultant,                        
+                isAppEngineSubscriber: app.account.isAppEngineSubscriber,
+                id,
+                prefix: app.prefix,
+                vendorPrefix: app.vendorPrefix,
+                scopePrefix: app.scopePrefix,
+                scope: app.scope,
+                scopeMatchesPrefix: app.scopeMatchesPrefix,
+                isGlobal: app.isGlobal,
+                isPDI: app.isPDI,
+                instanceCount: app.instanceCount,
+                accountCount: Object.keys(app.accounts).length,
+                ide: app.ide,
                 isAESApp: app.isAESApp,
                 isSysApp: app.isSysApp,
                 isSysStoreApp: app.isSysStoreApp,
                 isProductionInstance: app.isProduction,
-                isRealApp: (app.isSysApp || app.isSysStoreApp),
                 createdOn: app.createdOn,
-                createdOnYearMonth: moment(app.createdOn).format("YYYY-MM"),
-                createdOnYear: moment(app.createdOn).format("YYYY"),
-                installedOn: app.installedOn,
-                installedOnYearMonth: (app.installedOn.length > 0 ? moment(app.installedOn).format("YYYY-MM") : ""),
-                installedOnYear: (app.installedOn.length > 0 ? moment(app.installedOn).format("YYYY") : "")
-            };
-
-            worksheet.addRow(record);
-
-            records.push(record);
+                createdOnYear: app.createdOnYear,
+                createdOnQtr: app.createdOnQtr
+            });
         }
-    }
-
-    return records;
-};
-
-
-var writeAggregates = (workbook) => {
-    var promise = new Promise((resolve, reject) => {
-
-        var fileName = path.join(__dirname, "/audit-files/aggregates.csv");
-
-        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
-
-            var wsSummary = workbook.addWorksheet("Summary");
-            var wsSummaryByMonth = workbook.addWorksheet("Summary - By Month");
-
-            wsSummary.setColumns([
-                { header: 'Instance', width: 42 },
-                { header: 'Instance Purpose', width: 12 },
-                { header: 'Company', width: 42 },
-                { header: 'Account No.', width: 12 },
-                { header: 'Account Type', width: 17 },                
-                { header: 'App Engine Subscriber', width: 22 },
-                { header: 'Total AES Apps', width: 20 },
-                { header: 'Total Custom Apps (sys_app)', width: 20 },
-                { header: 'Total Store Apps (sys_store_app)', width: 20 }
-            ]);
-
-            wsSummaryByMonth.setColumns([
-                { header: 'Instance', width: 42 },
-                { header: 'Instance Purpose', width: 12 },
-                { header: 'Company', width: 42 },
-                { header: 'Account No.', width: 12 },
-                { header: 'Account Type', width: 17 },                
-                { header: 'App Engine Subscriber', width: 22 },
-                { header: 'Created On YYYY-MM', width: 22 },
-                { header: 'Created On YYYY', width: 22 },
-                { header: 'AES Apps', width: 20 },
-                { header: 'Custom Apps (sys_app)', width: 20 },
-                { header: 'Store Apps (sys_store_app)', width: 20 }
-            ]);
-
-            auditData.forEach((row) => {
-                if(row.data && row.data.apps) {
-                    var totalApps = { aes: 0, app: 0, sApp: 0 };
-                    var customer = row.instance.account;
-
-                    for(var month in row.data.apps) {
-                        var appCounts = row.data.apps[month];
-                        
-                        totalApps.aes += appCounts.aes;
-                        totalApps.app += appCounts.app;
-                        totalApps.sApp += appCounts.sApp;
-                        
-                        wsSummaryByMonth.addRow({
-                            instanceName: row.instanceName,
-                            purpose: row.instance.purpose,
-                            company: customer.accountName,
-                            accountNo: customer.accountNo,
-                            accountType: customer.accountType,                        
-                            isAppEngineSubscriber: customer.isAppEngineSubscriber,
-                            createdOnYearMonth: moment(month, "M/YYYY").format("YYYY-MM"),
-                            createdOnYear: moment(month, "M/YYYY").format("YYYY"),
-                            aes: appCounts.aes,
-                            customApps: appCounts.app,
-                            storeApps: appCounts.sApp
-                        });
-                    }
-                    
-                    wsSummary.addRow({
-                        instanceName: row.instanceName,
-                        purpose: row.instance.purpose,
-                        company: customer.accountName,
-                        accountNo: customer.accountNo,
-                        accountType: customer.accountType,                        
-                        isAppEngineSubscriber: customer.isAppEngineSubscriber,
-                        aes: totalApps.aes,
-                        customApps: totalApps.app,
-                        storeApps: totalApps.sApp
-                    });
-                }
-            });
-            
-            console.log("Completed writing aggregate summaries");
-            resolve();
-        });
-
-    });
-
-    return promise;
-};
-
-var writeAppCounts = (workbook) => {
-    var promise = new Promise((resolve, reject) => {
-
-        var fileName = path.join(__dirname, "/audit-files/app-counts.csv");
-
-        FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
-
-            var ws = workbook.addWorksheet("App Counts");
-
-            ws.setStandardColumns([
-                { header: 'Vendor Prefix', width: 42 },
-                { header: 'Custom Apps - All', width: 12 },
-                { header: 'Custom Apps - Prefixed', width: 42 },
-                { header: 'Custom Apps - Difference', width: 42 },
-                { header: 'Custom Apps - Not Equal', width: 42 },
-                { header: 'Store Apps', width: 12 },
-                { header: 'Vendor Apps', width: 17 },                
-                { header: 'Calculated Total Apps', width: 22 }
-            ]);
-
-            auditData.forEach((row) => {
-                if(row.data && row.data.calculatedTotalApps) {
-                    var appCounts = row.data;
-
-                    ws.addStandardRow(row.instanceName, row.instance, {
-                        prefix: appCounts.vendorPrefix,
-                        customAppsAll: appCounts.customAppsAll,
-                        customAppsPrefixed: appCounts.customAppsPrefixed,
-                        customAppsDifference: (appCounts.customAppsAll - appCounts.customAppsPrefixed),
-                        notEqual: (appCounts.customAppsAll !=  appCounts.customAppsPrefixed),
-                        storeApps: appCounts.storeApps,
-                        vendorApps: appCounts.vendorApps,
-                        calculatedApps: appCounts.calculatedTotalApps,
-                    });
-                }
-            });
-            
-            console.log("Completed writing app counts");
-            resolve();
-        });
-
-    });
-
-    return promise;
+    })();    
 };
 
 (function(){
 
-    FileLoader.loadInstancesAndAccounts()
-        .then(loadAllFiles)
-        .then((combinedApps) => {
+    FileLoader.loadInstancesAndAccounts().then((instances) => {
+        loadAESApps().then((aesApps) => {
+            loadCustomApps(aesApps.ids).then((customApps) => {
+                var wb = new Audit.AuditWorkbook("./custom-apps.xlsx");
 
-            var workbook = new Audit.AuditWorkbook("./custom-apps.xlsx");
+                /* 
+                    Write the AES apps to a worksheet. De-dup but count the # of accounts and # of instances where the sys id was found
 
-            writeCustomAppsWorksheet(workbook, combinedApps);
+                    Write the custom apps to a worksheet
+                        Set IDE created to AES if found in the aesApps dataset
+                        Compare the scope to the vendor prefix, flag if it doesn't match
+                        De-dup but count the # of accounts and # of instances where it was found. 
+                            Bonus if we can count the number of prod instances where it was found.
+                            Would love to know how many of the same app are found across different accounts. These are probably partner apps and it will be good
 
-            writeAggregates(workbook).then(() => {
-                writeAppCounts(workbook).then(() => {
-                    workbook.commit().then(() => console.log("Finished!"));
-                });
+                    Write the counts to a separate worksheet
+                        Instance X has y AES apps, z custom apps, k store apps
+                        Account X has y unique AES apps, z unique custom apps, k unique store apps
+
+                */
+
+                writeCustomAppsWorksheets(wb, instances, customApps.combined);
+
+                //writeAESWorksheet(wb, instances, aesApps.combined, customApps.ids);
+                //writeAESWorksheets(wb, instances, aesApps.combined, customApps.ids);                
+
+                wb.commit().then(() => console.log("Finished!"));
+
             });
         });
+    });
 })();

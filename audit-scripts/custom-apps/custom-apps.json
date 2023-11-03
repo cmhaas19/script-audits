@@ -95,7 +95,8 @@
           },
           "c4d743638770291025c00f67cebb3553":{
              "s":"x_snc_catalog_ne_0",
-             "c":"2023-02"
+             "c":"2023-02",
+             "i":"AES"
           },
           "cd60432fbe70e5106cf4bbfac8ae4684":{
              "s":"x_snc_performanc_0",
