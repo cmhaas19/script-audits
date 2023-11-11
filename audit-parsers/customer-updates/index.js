@@ -171,8 +171,60 @@ var loadData = () => {
     return promise;
 };
 
-var createSummaryWorksheet = (auditData, wb) => {
+var loadPackages = () => {
+    var fileName = path.join(__dirname, "packages.csv");
 
+    /*
+        Group by labels, keep the label/table combination
+    */
+
+    var promise = new Promise((resolve, reject) => {
+        FileLoader.parseCsvFile(fileName).then((auditData) => {
+            var packages = {};
+    
+            auditData.forEach((row) => {
+                if(row.data && row.data.currentLanguage && row.data.currentLanguage == "en") {
+                    for(var tableName in row.data.artifactPackages) {
+                        var package = row.data.artifactPackages[tableName];
+                        var label = package.lbl;
+
+                        if(label != undefined && label != null) {
+                            if(packages[label] == undefined)
+                                packages[label] = {};
+
+                            if(packages[label][tableName] == undefined)
+                                packages[label][tableName] = { count: 0, pkg: package.pkg };
+
+                            packages[label][tableName].count++;
+                        }
+                    }
+                }
+                
+            });
+
+            var labelPackages = {};
+
+            for(var label in packages) {
+                var occurence = 0;
+
+                labelPackages[label] = { tableName: "", package: "", label: label };
+
+                for(var tableName in packages[label]) {
+                    var package = packages[label][tableName];
+
+                    if(package.count > occurence) {
+                        occurence = package.count;
+                        labelPackages[label].tableName = tableName;
+                        labelPackages[label].package = package.pkg;
+                    }
+                }
+            }
+
+            resolve(labelPackages);
+        });
+    });
+
+    return promise;
 };
 
 var createCsvFile = (auditData) => {
@@ -208,6 +260,67 @@ var createCsvFile = (auditData) => {
     }
 
     console.log(`Done. Wrote ${recordsWritten} records`);
+
+    stream.end();
+};
+
+var createAggregatedCsvFile = (auditData, packages) => {
+    const fileName = path.join(__dirname, 'customer-updates-aggregated.csv');
+    const csvFile = fs.createWriteStream(fileName);
+    const stream = format({ headers:true });
+    stream.pipe(csvFile);
+
+    var recordsWritten = 0;
+    var records = {};
+
+    console.log("Creating aggregated CSV file");
+
+    for(var instanceName in auditData) {
+        var instance = auditData[instanceName];
+
+        for(var scopeName in instance.customerUpdates) {
+            var scope = instance.customerUpdates[scopeName];
+
+            for(var fileTypeName in scope) {
+
+                if(records[fileTypeName] == undefined)
+                    records[fileTypeName] = { scopes: {}, accounts: {}, created: 0, modified: 0 };
+
+                var fileType = records[fileTypeName];
+                
+                fileType.scopes[scopeName] = true;
+                fileType.accounts[instance.instanceInfo.accountNo] = true;
+                fileType.created += scope[fileTypeName].created;
+                fileType.modified += scope[fileTypeName].modified;
+            }
+        }
+    }
+
+    for(var fileTypeName in records) {
+        var fileType = records[fileTypeName];
+        var foundPackage = packages[fileTypeName];
+
+        var record = {
+            tableName: "",
+            fileType: fileTypeName,
+            package: "",
+            scopes: Object.keys(fileType.scopes).length,
+            accounts: Object.keys(fileType.accounts).length,
+            created: fileType.created,
+            modified: fileType.modified
+        };
+
+        if(foundPackage != undefined) {
+            record.tableName = foundPackage.tableName;
+            record.package = foundPackage.package;
+        }
+
+        stream.write(record);
+
+        recordsWritten++;
+    }
+
+    console.log(`Done creating aggregated CSV file. Wrote ${recordsWritten} records`);
 
     stream.end();
 };
@@ -266,24 +379,22 @@ var createUpdatesWorksheet = (auditData, wb) => {
 
 (function(){
 
-    var wb = new ExcelJS.stream.xlsx.WorkbookWriter({
-        filename: "customer-updates.xlsx"
-    });
+    loadPackages().then((packages) => {
+        loadData().then((auditData) => {
 
-    loadData().then((auditData) => {
+            //createCsvFile(auditData);
+            //console.log("Completed creating the big CSV file");
 
-        createCsvFile(auditData);
-        console.log("Completed creating the CSV file");
-
-        //createSummaryWorksheet(auditData, wb);
-        //console.log("Completed Summary Worksheet");
-        
-        //createUpdatesWorksheet(auditData, wb);
-        //console.log("Completed Updates By Type Worksheet");
-        
-        wb.commit().then(() => {
-            console.log("Done");
+            createAggregatedCsvFile(auditData, packages);
+    
+            //createSummaryWorksheet(auditData, wb);
+            //console.log("Completed Summary Worksheet");
+            
+            //createUpdatesWorksheet(auditData, wb);
+            //console.log("Completed Updates By Type Worksheet");
+    
         });
-    });
+    })
+    
 
 })();
