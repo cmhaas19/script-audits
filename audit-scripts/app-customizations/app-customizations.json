@@ -1,0 +1,22 @@
+{
+    "customizations":{
+       "2a962914972a7110cef9b50de053afec":{
+          "app":{
+             "nm":"Customer Service",
+             "id":"51d811fad7223100b7490ee60e61034f",
+             "scope":"sn_customerservice",
+             "version":"24.4.6"
+          },
+          "createdOn":"2023-11-12",
+          "version":"1.0.4",
+          "files":{
+             "sys_app_module":1,
+             "sys_db_object":1,
+             "sys_dictionary":2,
+             "sys_documentation":2,
+             "sys_metadata_delete":2,
+             "sys_ui_section":1
+          }
+       }
+    }
+ }

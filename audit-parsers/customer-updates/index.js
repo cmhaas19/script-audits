@@ -1,41 +1,11 @@
 const path = require('path');
+const Audit = require('../common/AuditWorkbook.js');
 const FileLoader = require('../common/FileLoader.js');
 const ExcelJS = require('exceljs');
 const fs = require('fs');
 const fastCsv = require("fast-csv");
 const { format } = require('@fast-csv/format');
 const moment = require("moment");
-
-var generateColumns = (values) => {
-    var columns = [
-        { header: 'Instance Name', width: 22 },
-        { header: 'Company', width: 42 },
-        { header: 'Account No.', width: 12 },
-        { header: 'Account Type', width: 17 },
-        { header: 'Primary Rep', width: 22 },
-        { header: 'Solution Consultant', width: 23 },
-        { header: 'App Engine Subscriber', width: 22 },
-        { header: 'Instance Version', width: 63 },
-        { header: 'Instance Purpose', width: 16 },
-    ];
-
-    return columns.concat(values);
-};
-
-var generateRowValues = (instanceName, instance, values) => {
-    var rowValues = [];
-
-    if(instance && instance.account) {
-        var account = instance.account;
-        rowValues = [instanceName, account.accountName, account.accountNo, account.accountType, account.primarySalesRep, account.solutionConsultant, account.isAppEngineSubscriber, instance.version, instance.purpose];
-    }                
-    else {
-        rowValues = [instanceName,"","","","","","","",""];
-    }
-        
-
-    return rowValues.concat(values);
-};
 
 var loadAllFiles = () => {
     return Promise.all([ 
@@ -48,6 +18,91 @@ var loadAllFiles = () => {
 
     ]);
 };
+
+const HR_SCOPES = [
+    'sn_ca',
+    'sn_cd',
+    'sn_ci_analytics',
+    'sn_cianalytics_cmp',
+    'sn_dt',
+    'sn_dt_spoke',
+    'sn_esign',
+    'sn_ex_sp_pro',
+    'sn_hr_integr_fw',
+    'sn_hr_mobile',
+    'sn_hr_nlu',
+    'sn_hr_va',
+    'sn_hr_core',
+    'sn_hr_integrations',
+    'sn_hr_le',
+    'sn_ibm_trans_spoke',
+    'sn_nlu_discovery',
+    'sn_ms_trans_spoke',
+    'sn_language_change',
+    'sn_lds_spoke',
+    'sn_msc',
+    'sn_trans_commons',
+    'sn_analytics_api',
+    'sn_topic_recommend'
+];
+
+const CSM_SCOPES = [
+    'sn_account_hier',
+    'sn_account_hierarc',
+    'sn_action_status',
+    'sn_aisearch_global',
+    'sn_app_cs_social',
+    'sn_apptmnt_booking',
+    'sn_casetypes_selec',
+    'sn_chars',
+    'sn_comm_management',
+    'sn_component_produ',
+    'sn_contributor',
+    'sn_cs_base_ext',
+    'sn_cs_queryrules',
+    'sn_cs_sm',
+    'sn_cs_sm_request',
+    'sn_cs_time_record',
+    'sn_csm_act_stat',
+    'sn_csm_ah',
+    'sn_csm_case_digest',
+    'sn_csm_case_types',
+    'sn_csm_doctemplate',
+    'sn_csm_household',
+    'sn_csm_lv',
+    'sn_csm_mobile',
+    'sn_csm_portal',
+    'sn_csm_proxy_cont',
+    'sn_csm_uni_th_data',
+    'sn_csm_uni_theme',
+    'sn_csm_workspace',
+    'sn_csm_workspace_c',
+    'sn_csm_wrkspc',
+    'sn_csm.awa',
+    'sn_csp_portal',
+    'sn_customer_actvty',
+    'sn_customer_feed',
+    'sn_customercentral',
+    'sn_customerservice',
+    'sn_cwf_wrkspc',
+    'sn_cwf_ws_int',
+    'sn_doc',
+    'sn_fsm_ah',
+    'sn_fsm_pm',
+    'sn_ib_chars',
+    'sn_install_base',
+    'sn_lookup_verify',
+    'sn_majorissue_mgt',
+    'sn_notes_template',
+    'sn_openframe',
+    'sn_openframe_uxb',
+    'sn_prd_pm',
+    'sn_query_rules',
+    'sn_sensitive_data',
+    'sn_skill_cfg_page',
+    'sn_skill_rule',
+    'sn_uib_lookup',
+];
 
 var flattenRecords = (records, fileTypes) => {
     var reverseTypes = {};
@@ -264,16 +319,22 @@ var createCsvFile = (auditData) => {
     stream.end();
 };
 
-var createAggregatedCsvFile = (auditData, packages) => {
-    const fileName = path.join(__dirname, 'customer-updates-aggregated.csv');
-    const csvFile = fs.createWriteStream(fileName);
-    const stream = format({ headers:true });
-    stream.pipe(csvFile);
-
+var createAggregatedCsvFile = (workbook, auditData, packages) => {
+    var ws = workbook.addWorksheet("Updates - Aggregated");
     var recordsWritten = 0;
     var records = {};
 
-    console.log("Creating aggregated CSV file");
+    ws.setColumns([
+        { header: 'Table Name', width: 22 },
+        { header: 'File Type', width: 22 },
+        { header: 'Package', width: 22 },
+        { header: 'No. of Scopes', width: 22 },
+        { header: 'No. of Accounts', width: 22 },
+        { header: 'Created', width: 22 },
+        { header: 'Modified', width: 22 },
+        { header: 'Is CSM Related', width: 22 },
+        { header: 'Is HR Related', width: 22 }
+    ]);
 
     for(var instanceName in auditData) {
         var instance = auditData[instanceName];
@@ -307,7 +368,9 @@ var createAggregatedCsvFile = (auditData, packages) => {
             scopes: Object.keys(fileType.scopes).length,
             accounts: Object.keys(fileType.accounts).length,
             created: fileType.created,
-            modified: fileType.modified
+            modified: fileType.modified,
+            isCsmRelated: (CSM_SCOPES.indexOf(scopeName) != -1),
+            isHrRelated: (HR_SCOPES.indexOf(scopeName) != -1)
         };
 
         if(foundPackage != undefined) {
@@ -315,14 +378,83 @@ var createAggregatedCsvFile = (auditData, packages) => {
             record.package = foundPackage.package;
         }
 
-        stream.write(record);
+        ws.addRow(record);
 
         recordsWritten++;
     }
 
-    console.log(`Done creating aggregated CSV file. Wrote ${recordsWritten} records`);
+    console.log(`Done creating aggregated worksheet. Wrote ${recordsWritten} records`);
+};
 
-    stream.end();
+var createScopeWorksheet = (workbook, auditData, packages) => {
+    var ws = workbook.addWorksheet("Updates - By scope");
+    var recordsWritten = 0;
+    var allScopes = {};
+
+    ws.setColumns([
+        { header: 'Scope', width: 22 },
+        { header: 'Table Name', width: 22 },
+        { header: 'File Type', width: 22 },
+        { header: 'Package', width: 22 },
+        { header: 'No. of Accounts', width: 22 },
+        { header: 'Created', width: 22 },
+        { header: 'Modified', width: 22 },
+        { header: 'Is CSM Related', width: 22 },
+        { header: 'Is HR Related', width: 22 }
+    ]);
+
+    for(var instanceName in auditData) {
+        var instance = auditData[instanceName];
+
+        for(var scopeName in instance.customerUpdates) {
+            var scope = instance.customerUpdates[scopeName];
+
+            if(allScopes[scopeName] == undefined)
+                allScopes[scopeName] = {};
+
+            for(var fileTypeName in scope) {
+
+                if(allScopes[scopeName][fileTypeName] == undefined)
+                    allScopes[scopeName][fileTypeName] = { accounts: {}, created: 0, modified: 0 };
+
+                var fileType = allScopes[scopeName][fileTypeName];
+                
+                fileType.accounts[instance.instanceInfo.accountNo] = true;
+                fileType.created += scope[fileTypeName].created;
+                fileType.modified += scope[fileTypeName].modified;
+            }
+        }
+    }
+
+    for(var scopeName in allScopes){
+        for(var fileTypeName in allScopes[scopeName]) {
+            var fileType = allScopes[scopeName][fileTypeName];
+            var foundPackage = packages[fileTypeName];
+    
+            var record = {
+                scope: scopeName,
+                tableName: "",
+                fileType: fileTypeName,
+                package: "",
+                accounts: Object.keys(fileType.accounts).length,
+                created: fileType.created,
+                modified: fileType.modified,
+                isCsmRelated: (CSM_SCOPES.indexOf(scopeName) != -1),
+                isHrRelated: (HR_SCOPES.indexOf(scopeName) != -1)
+            };
+    
+            if(foundPackage != undefined) {
+                record.tableName = foundPackage.tableName;
+                record.package = foundPackage.package;
+            }
+    
+            ws.addRow(record);
+    
+            recordsWritten++;
+        }
+    }
+    
+    console.log(`Done creating scopes worksheet. Wrote ${recordsWritten} records`);
 };
 
 var createUpdatesWorksheet = (auditData, wb) => {
@@ -385,7 +517,13 @@ var createUpdatesWorksheet = (auditData, wb) => {
             //createCsvFile(auditData);
             //console.log("Completed creating the big CSV file");
 
-            createAggregatedCsvFile(auditData, packages);
+            var wb = new Audit.AuditWorkbook("./customer-updates.xlsx");
+
+            createScopeWorksheet(wb, auditData, packages);
+
+            createAggregatedCsvFile(wb, auditData, packages);
+
+            wb.commit().then(() => console.log("Finished!"));
     
             //createSummaryWorksheet(auditData, wb);
             //console.log("Completed Summary Worksheet");
@@ -394,7 +532,7 @@ var createUpdatesWorksheet = (auditData, wb) => {
             //console.log("Completed Updates By Type Worksheet");
     
         });
-    })
+    });
     
 
 })();
