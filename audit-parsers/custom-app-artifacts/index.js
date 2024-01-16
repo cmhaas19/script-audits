@@ -51,6 +51,7 @@ var isCustomArtifact = (artifact) => {
         FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
             var scopes = {};
             var artifacts = {};
+            var yearsAgo = moment().subtract(3, "years");
             
             //
             // Loop through and aggregate by scope to ensure we don't double count the same apps
@@ -69,21 +70,23 @@ var isCustomArtifact = (artifact) => {
                     for(var scope in row.data.customAppArtifacts.artifacts){
                         var app = row.data.customAppArtifacts.artifacts[scope];
     
-                        if(scopes[scope] == undefined || instancePurpose == 'Production') {
-                            scopes[scope] = {
-                                artifacts: {},
-                                instance: { name: "", purpose: "", customer: "" },
-                                createdOn: app.createdOn
-                            };
-    
-                            for(var artifactKey in app.artifacts){
-                                var artifact = artifactKeys[artifactKey];
-                                scopes[scope].artifacts[artifact] = app.artifacts[artifactKey];
-                            }
+                        if(moment(app.createdOn).isSameOrAfter(yearsAgo)) {
+                            if(scopes[scope] == undefined || instancePurpose == 'Production') {
+                                scopes[scope] = {
+                                    artifacts: {},
+                                    instance: { name: "", purpose: "", customer: "" },
+                                    createdOn: app.createdOn
+                                };
+        
+                                for(var artifactKey in app.artifacts){
+                                    var artifact = artifactKeys[artifactKey];
+                                    scopes[scope].artifacts[artifact] = app.artifacts[artifactKey];
+                                }
 
-                            scopes[scope].instance.name = row.instanceName;
-                            scopes[scope].instance.purpose = row.instance.purpose;
-                            scopes[scope].instance.customer = row.instance.customer;
+                                scopes[scope].instance.name = row.instanceName;
+                                scopes[scope].instance.purpose = row.instance.purpose;
+                                scopes[scope].instance.customer = row.instance.customer;
+                            }
                         }
                     }
                 }
@@ -98,7 +101,7 @@ var isCustomArtifact = (artifact) => {
             //
             for(var scope in scopes){
                 var app = scopes[scope];
-    
+
                 for(var artifact in app.artifacts) {
                     if(artifacts[artifact] == undefined){
                         artifacts[artifact] = { totalArtifacts: 0, totalApps: 0};

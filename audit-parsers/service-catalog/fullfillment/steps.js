@@ -6,6 +6,12 @@ const ExcelJS = require('exceljs');
 
 var STEP_NAMES = {};
 
+var OOTB_STEPS = {
+    "dc0f364873122010ae42d31ee2f6a7f3": "Task",
+    "2b7d9a7e87022010c84e4561d5cb0b21": "Custom Approval",
+    "38ee146053162010fca7ddeeff7b1221": "Manager Approval"
+};
+
 var getStepNames = (auditData) => {
 
     auditData.forEach((row) => {
@@ -21,7 +27,7 @@ var getStepNames = (auditData) => {
 var process = () => {
     var promise = new Promise((resolve, reject) => {
 
-        var fileName = path.join(__dirname, "results.csv");   
+        var fileName = path.join(__dirname, "fulfillment-steps-audit.csv");   
 
         FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
 
@@ -36,7 +42,8 @@ var process = () => {
                     { header: 'Step SysID', width: 25 },
                     { header: 'Step Name', width: 25 },
                     { header: 'Item Count', width: 32 },
-                    { header: 'Step Count', width: 25 }
+                    { header: 'Step Count', width: 25 },
+                    { header: 'Is Custom Step', width: 15 },
                 ]);
                 
                 auditData.forEach((row) => {
@@ -49,7 +56,8 @@ var process = () => {
                                 id: id,
                                 name: (STEP_NAMES[id] || step.name),
                                 itemCount: step.items,
-                                stepCount: step.total
+                                stepCount: step.total,
+                                isCustom: (OOTB_STEPS[id] == undefined)
                             });
 
                         }
