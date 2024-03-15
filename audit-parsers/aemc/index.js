@@ -117,7 +117,8 @@ var processTasksByMonth = (wb, auditData) => {
         { header: 'Primary Rep', width: 20 },
         { header: 'Solution Consultant', width: 20 },
         { header: 'App Engine Subscriber', width: 22 },
-        { header: 'Month', width: 20 },
+        { header: 'Month', width: 15 },
+        { header: 'Quarter', width: 15 },
         { header: 'Monthly Active Users', width: 25, alignment: { horizontal: 'right' } },
         { header: 'Deployment Tasks', width: 20, alignment: { horizontal: 'right' } },
         { header: 'Collaboration Tasks', width: 20, alignment: { horizontal: 'right' } },
@@ -180,6 +181,7 @@ var processTasksByMonth = (wb, auditData) => {
                 solutionConsultant: account.solutionConsultant,
                 isAppEngineSubscriber: account.isAppEngineSubscriber,
                 month: month,
+                quarter: `${moment(month, "YYYY-MM").format("YYYY")}-Q${moment(month, "YYYY-MM").quarter()}`,
                 activeUsers: CUSTOMERS[accountNo][month].activeUsers,
                 deploymentCounts: CUSTOMERS[accountNo][month].deployment,
                 collaborationCounts: CUSTOMERS[accountNo][month].collaboration,
@@ -201,6 +203,7 @@ var processCustomers = (wb, auditData) => {
         { header: 'App Engine Subscriber', width: 22 },
         { header: 'AEMC Installed On', width: 17 },
         { header: 'AEMC Installed On YYYY-MM', width: 12 },
+        { header: 'AEMC Installed On Qtr', width: 12 },
         { header: 'AEMC Version', width: 17 },
     ]);
 
@@ -225,6 +228,7 @@ var processCustomers = (wb, auditData) => {
                         isAppEngineSubscriber: account.isAppEngineSubscriber,
                         installedOn: aemc.installedOn,
                         installedOnYearMonth: moment(aemc.installedOn, 'YYYY-MM-DD').format("YYYY-MM"),
+                        installedOnQtr: `${moment(aemc.installedOn, "YYYY-MM").format("YYYY")}-Q${moment(aemc.installedOn, "YYYY-MM").quarter()}`,
                         version: aemc.version
                     });
                 }
@@ -291,6 +295,64 @@ var processIntakeCounts = (wb, auditData) => {
             }
         }
     });
+};
+
+var processPipelineCustomers = (wb, auditData) => {
+    var ws = wb.addWorksheet("Pipeline Customers");
+
+    ws.setColumns([
+        { header: 'Customer', width: 20 },
+        { header: 'Account No.', width: 20 },
+        { header: 'Account Type', width: 20 },
+        { header: 'First Pipeline Created On', width: 20 },
+        { header: 'First Pipeline Created On QTR', width: 20 },
+        { header: 'Total Pipelines', width: 20, alignment: { horizontal: 'right' } }
+    ]);
+
+    var customers = {};
+
+    auditData.forEach((row) => {
+        if(row.data && row.data.pipelineConfigurations) {
+            for(var configId in row.data.pipelineConfigurations) {
+                 var account = row.instance.account;
+                 var accountNo = account.accountNo;
+
+                 var customer = customers[accountNo];
+
+                 if(customer == undefined) {
+                     customer = {
+                         accountName: account.accountName,
+                         accountNo: accountNo,
+                         accountType: account.accountType,
+                         firstPipelineCreatedOn: row.data.pipelineConfigurations[configId].createdOn,
+                         pipelineCount: 0
+                     };
+
+                     customers[accountNo] = customer;
+                 }
+
+                 if(moment(row.data.pipelineConfigurations[configId].createdOn).isSameOrBefore(moment(customer.firstPipelineCreatedOn))) {
+                    customer.firstPipelineCreatedOn = row.data.pipelineConfigurations[configId].createdOn;
+                 }
+
+                 customer.pipelineCount++;
+            }
+        }
+    });
+
+    for(var accountNo in customers) {
+        var customer = customers[accountNo];
+
+        ws.addRow({
+            accountName: customer.accountName,
+            accountNo: customer.accountNo,
+            accountType: customer.accountType,
+            firstPipelineCreatedOn: moment(customer.firstPipelineCreatedOn).format("YYYY-MM"),
+            firstPipelineCreatedOnQtr: `${moment(customer.firstPipelineCreatedOn, "YYYY-MM").format("YYYY")}-Q${moment(customer.firstPipelineCreatedOn, "YYYY-MM").quarter()}`,
+            pipelineCount: customer.pipelineCount
+        });
+    }
+   
 };
 
 var processPipelines = (wb, auditData) => {
@@ -386,6 +448,8 @@ var processPipelineEnvironments = (wb, auditData) => {
         processCollaborationCounts(wb, auditData);
 
         processIntakeCounts(wb, auditData);
+
+        processPipelineCustomers(wb, auditData);
 
         processPipelines(wb, auditData);
 

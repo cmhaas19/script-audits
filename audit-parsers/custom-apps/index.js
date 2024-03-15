@@ -168,7 +168,7 @@ var loadCustomApps = (aesAppIds) => {
                                     isPDI: false
                                 };
 
-                                if(row.data.code.length > 0)
+                                if(row.data.code != undefined && row.data.code.length > 0)
                                     customApp.vendorPrefix = `x_${row.data.code}_`;
 
                                 if(customApp.scope.length > 0 && customApp.scope.indexOf("_") != -1)

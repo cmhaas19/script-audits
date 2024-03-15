@@ -39,6 +39,7 @@ var parsePortals = (distinct) => {
                 'Scope',
                 'Created',
                 'Created YYYY-MM',
+                'Created Qtr',
                 'Updated',
                 'Updated YYYY-MM'
             ];
@@ -69,6 +70,7 @@ var parsePortals = (distinct) => {
                             scope: ex.scope,
                             createdOn: ex.createdOn,
                             createdOnMonthYear: moment(ex.createdOn).format("YYYY-MM"),
+                            createdOnQtr: `${moment(ex.createdOn, "YYYY-MM").format("YYYY")}-Q${moment(ex.createdOn, "YYYY-MM").quarter()}`,
                             updatedOn: ex.updatedOn,
                             updatedOnMonthYear: moment(ex.updatedOn).format("YYYY-MM")
                         }));
