@@ -1,547 +1,335 @@
-/*
- * The START_DATE and END_DATE variables will be used to filter for development
- * between these dates. The dates are inclusive.
- * Examples:
- * - START_DATE = new GlideDateTime("2023-01-01 00:00:00")
- * - END_DATE = new GlideDateTime("2023-12-31 23:59:59")
- */
-var START_DATE = new GlideDateTime("2023-01-01 00:00:00");
-var END_DATE = new GlideDateTime("2023-12-31 23:59:59");
 
-/*
- * If you're running this script as maint (i.e. after HOPing in or via a read
- * audit) you'll want to muck with the whitelist manager to avoid excessive
- * logging, and you can use some faster internal APIs. If you aren't maint this
- * stuff won't work so set this to false.
- */
-var RUN_AS_MAINT = true;
+(function(){
 
-/*
- * To explain how this script works we will add example outputs for important
- * steps. These outputs assume a fake table called sys_greetings has been
- * created on the instance:
- *
- * - Table name: sys_greeting
- * - Extends: sys_metadata
- * - Column 1: `name`
- *   - Type: String
- * - Column 2: `greeting`
- *   - Type: Script
- *   - Default value: `gs.log("Hello {user.name}")`
- *
- * Three records were created in sys_greetings in the "Default" update set
- * in the global scope:
- *
- * - Record 1: a7e4d6ceebd90210fe9af963bad0cdfe
- *   - name: "With default greeting"
- *   - greeting: Uses the default value
- * - Record 2: 5ed45aceebd90210fe9af963bad0cda0
- *  - name: "With custom greeting"
- *  - greeting: `gs.log("Hola {user.name}")`
- * - Record 3: 6ec91eceebd90210fe9af963bad0cd76
- *  - name: "With festive greeting"
- *  - greeting: `gs.log("Happy Monday {user.name}!")`
- *
- * Later the "With festive greeting" record was edited in a second update set
- * called "Festive greetings" in the global scope to have the following:
- *
- * - Record 3: 6ec91eceebd90210fe9af963bad0cd76
- * - name: "With festive greeting"
- * - greeting: `gs.log("Happy Monday {user.name}! It's a great day!")`
- *
- */
+    var DATE_RANGE = { startDate: new GlideDateTime("2011-01-01 00:00:00"), endDate: new GlideDateTime("2011-12-31 23:59:59")};
+    var TABLES_WITH_SCRIPT_FIELDS = {};
+    var UPDATE_NAMES = {};
+    var VERSION_RECORDS = {};
+    var RESULTS = { log: {}, ommittedRecords: { acl: 0, maint: 0, clientScriptV2: 0 }, tables: {} };
 
-function main() {
-  /*
-   * The table map will hold all tables on the instance that have columns with
-   * a script-like internal type. Our sys_greetings table will be included in
-   * this map:
-   *
-   * ```
-   * {
-   *   sys_greetings: [{
-   *     name: "greeting",
-   *     internalType: "script",
-   *     defaultValue: "gs.log(\"Hello {user.name}\")"
-   *   }],
-   *   sys_script: [...],
-   *   ...
-   * ]
-   * ```
-   */
-  var tableMap = getScriptTablesAndColumns();
+    var StopWatch = function() {
+        var start = new GlideDateTime();
+    
+        return {
+            getTime: function() {
+                var duration = GlideDateTime.subtract(start, new GlideDateTime());
+                return duration.getNumericValue();
+            }
+        };
+    };
 
-  /*
-   * `seenUpdates` will be a cache of all the update names that have been
-   * processed. This will prevent us from wasting time processing the same
-   * update multiple times. We'll mutate this object as we process updates.
-   *
-   * ```
-   * {
-   *   "sys_greetings_a7e4d6ceebd90210fe9af963bad0cdfe": true
-   *   "sys_greetings_5ed45aceebd90210fe9af963bad0cda0": true,
-   *   "sys_greetings_6ec91eceebd90210fe9af963bad0cd76": true,
-   * }
-   * ```
-   *
-   * `handledUpdates` will be a map of update names that we want to track.
-   * We'll use this criteria to determine if an update is worth tracking:
-   *
-   * 1. The update is not a DELETE action
-   * 2. The update will not be replaced on upgrade
-   * 3. The update payload is not empty
-   * 4. The updated record contains non-default non-empty values for at least one script-like column
-   */
+    //
+    // Initialize date ranges
+    //
+    var today = new GlideDateTime();
+    DATE_RANGE.startDate.setYearUTC((today.getYear() - 1));
+    DATE_RANGE.endDate.setYearUTC((today.getYear() - 1));       
+    RESULTS.log["DateRanges"] = { s: DATE_RANGE.startDate.getValue(), e: DATE_RANGE.endDate.getValue()};        
 
-  /** @type {SeenUpdatesCache} */
-  var seenUpdates = {};
+    //
+    // Get metadata tables with script fields
+    //
+    (function(){
+        var sw = new StopWatch();
+        var gr = new GlideRecord("sys_dictionary");
+        gr.setWorkflow(false);
+        gr.addEncodedQuery("internal_type=script^ORinternal_type=script_client^ORinternal_type=script_plain^ORinternal_type=script_server");
+        gr.query();
 
-  /** @type {UpdateInfoMap} */
-  var handledUpdates = {};
+        while(gr.next()){
+            var tableName = gr.getValue("name");
+            if (!GlideDBObjectManager.get().isMetadataExtension(tableName)) {
+                continue;
+            }
 
-  for (var tableName in tableMap) {
-    /*
-     * When called with the sys_greetings table this function will return an
-     * object with 1 key for each record in the table:
-     *
-     * ```
-     * {
-     *   "sys_greetings_a7e4d6ceebd90210fe9af963bad0cdfe": true
-     *   "sys_greetings_5ed45aceebd90210fe9af963bad0cda0": true,
-     *   "sys_greetings_6ec91eceebd90210fe9af963bad0cd76": true
-     * }
-     * ```
-     */
-    var updateNames = getUpdateNames(tableName);
+            if(TABLES_WITH_SCRIPT_FIELDS[tableName] === undefined){
+                TABLES_WITH_SCRIPT_FIELDS[tableName] = [];
+            }
 
-    /*
-     * This function will iterate over all sys_update_xml records for the
-     * sys_greetings table and find the ones that meet the criteria for
-     * tracking. It will mutate the `handledUpdates` map with the relevant
-     * information. It will also mutate the `seenUpdates` cache to prevent
-     * reprocessing the same updates.
-     *
-     * Once this function is done we will have a `handledUpdates` object with
-     * the following structure:
-     *
-     * ```
-     * {
-     *   // The "With default greeting" record will not be included because the greeting column uses the default value
-     *   "sys_greetings_5ed45aceebd90210fe9af963bad0cda0": {lines: 1, tableName: "sys_greetings"},
-     *   "sys_greetings_6ec91eceebd90210fe9af963bad0cd76": {lines: 1, tableName: "sys_greetings"}
-     * }
-     * ```
-     */
-    findHandledUpdates(
-      START_DATE,
-      END_DATE,
-      tableName,
-      tableMap[tableName],
-      updateNames,
-      seenUpdates,
-      handledUpdates
-    );
-  }
+            TABLES_WITH_SCRIPT_FIELDS[tableName].push({
+                name: gr.getValue("element"),
+                tableName: tableName,
+                internalType: gr.getValue("internal_type"),
+                defaultValue: (gr.getValue("default_value") || "").replace(/\s+/g, "")
+            });
+        }
 
-  /*
-   * Next we'll find all the updates that were created by the customer.
-   * This function will check the sys_update_version table to see if the last
-   * update to the record was came from a sys_upgrade_history record. If it did
-   * then we'll consider it not created by the customer.
-   *
-   * We'll mutate the `handledUpdates` object with this info. In our example
-   * sys_greetings table the customer created all the records so the updated
-   * `handledUpdates` object will look like this:
-   *
-   * ```
-   * {
-   *   "sys_greetings_5ed45aceebd90210fe9af963bad0cda0": {lines: 1, tableName: "sys_greetings", createdByCustomer: true},
-   *   "sys_greetings_6ec91eceebd90210fe9af963bad0cd76": {lines: 1, tableName: "sys_greetings", createdByCustomer: true}
-   * }
-   * ```
-   */
-  findUpdatesCreatedByCustomer(handledUpdates);
+        RESULTS.log["GetMetadataTables"] = { queryTime: sw.getTime(), tableCount: Object.keys(TABLES_WITH_SCRIPT_FIELDS).length };
 
-  /*
-   * Finally we'll calculate the metrics for the tracked updates. We'll have
-   * the following structure for the `metrics` object:
-   *
-   * ```
-   * {
-   *   all: {
-   *     recordsChanged: 2,
-   *     linesOfCodeChanged: 2,
-   *     customerRecordsChanged: 2,
-   *     customerLinesOfCodeChanged: 2
-   *   },
-   *   byTable: {
-   *     sys_greetings: {
-   *       recordsChanged: 2,
-   *       linesOfCodeChanged: 2,
-   *       customerRecordsChanged: 2,
-   *       customerLinesOfCodeChanged: 2
-   *     }
-   *   }
-   * }
-   * ```
-   */
-  var metrics = {
-    all: {
-      rc: 0, // Records changed
-      loc: 0, // Lines of code changed
-      crc: 0, // customerRecordsChanged
-      cloc: 0 // customerLinesOfCodeChanged
-    },
-    byTable: {}
-  };
+    })();
 
-  for (var updateName in handledUpdates) {
-    var tableName = handledUpdates[updateName].tableName;
-    var lines = handledUpdates[updateName].lines;
-    var createdByCustomer = handledUpdates[updateName].createdByCustomer;
+    //
+    // Get the update names of all the records in these tables that have been updated within the given date range
+    //
+    (function(){
+        var sw = new StopWatch();
+        var gr = new GlideRecord("sys_metadata");
+        gr.setWorkflow(false);
+        gr.addEncodedQuery("sys_class_nameIN" + Object.keys(TABLES_WITH_SCRIPT_FIELDS).join(","));
+        
+        var join = gr.addJoinQuery("sys_update_xml", "sys_update_name", "name");
+        join.addCondition("sys_created_on", ">=", DATE_RANGE.startDate);
+        join.addCondition("sys_created_on", "<=", DATE_RANGE.endDate);
+        gr.query();
 
-    if (!metrics.byTable[tableName]) {
-      metrics.byTable[tableName] = {
-        rc: 0, // Records changed
-        loc: 0, // Lines of code changed
-        crc: 0, // customerRecordsChanged
-        cloc: 0 // customerLinesOfCodeChanged
-      };
-    }
+        while(gr.next()){
+            var tableName = gr.getValue("sys_class_name"),
+                updateName = gr.getValue("sys_update_name");
 
-    metrics.all.rc++;
-    metrics.all.loc += lines;
-    metrics.byTable[tableName].rc++;
-    metrics.byTable[tableName].loc += lines;
+            UPDATE_NAMES[updateName] = { 
+                tableName: tableName,
+                tableFields: TABLES_WITH_SCRIPT_FIELDS[tableName], 
+                customerCreatedFile: true,
+                createdOn: gr.getValue("sys_created_on")
+            };
+        }
 
-    if (createdByCustomer) {
-      metrics.all.crc++;
-      metrics.all.cloc += lines;
-      metrics.byTable[tableName].crc++;
-      metrics.byTable[tableName].cloc += lines;
-    }
-  }
+        RESULTS.log["GetUpdateNames"] = { queryTime: sw.getTime(), updateCount: Object.keys(UPDATE_NAMES).length};
 
-  gs.info(JSON.stringify(metrics));
-}
+    })();
 
-var whitelist = [
-  {
-    name: "java.util.regex.Matcher",
-    member: "find",
-    signature: "()Z",
-    modified: false
-  },
-  {
-    name: "com.glide.data.access.TableFactory",
-    member: "get",
-    signature: "(Ljava/lang/String;)Lcom/glide/data/access/ITable;",
-    modified: false
-  },
-  {
-    name: "com.glide.data.access.ATable",
-    member: "addReturnField",
-    signature: "(Ljava/lang/String;)V",
-    modified: false
-  },
-  {
-    name: "com.glide.data.access.internal.CachedTable",
-    member: "query",
-    signature: "()V",
-    modified: false
-  },
-  {
-    name: "com.glide.data.access.internal.CachedTable",
-    member: "next",
-    signature: "()Z",
-    modified: false
-  },
-  {
-    name: "com.glide.data.access.internal.CachedTable",
-    member: "getValue",
-    signature: "(Ljava/lang/String;)Ljava/lang/String;",
-    modified: false
-  },
-  {
-    name: "com.glide.db.meta.TableIterator",
-    member: "next",
-    signature: "()Ljava/lang/Object;",
-    modified: false
-  },
-  {
-    name: "com.glide.db.meta.ATableIterator",
-    member: "getValue",
-    signature: "(Ljava/lang/String;)Ljava/lang/String;",
-    modified: false
-  },
-  {
-    name: "com.glide.db.DBQuery",
-    member: "addReturnField",
-    signature: "(Ljava/lang/String;)V",
-    modified: false
-  },
-  {
-    name: "com.glide.db.DBQuery",
-    member: "addNullQuery",
-    signature: "(Ljava/lang/String;)Lcom/glide/util/IQueryCondition;",
-    modified: false
-  },
-  {
-    name: "com.glide.db.DBQuery",
-    member: "addOrderBy",
-    signature: "(Ljava/lang/String;Z)Z",
-    modified: false
-  }
-];
+    //
+    // Grab all the version records for these updates
+    //
+    (function(){
+        var sw = new StopWatch();
+        var flaggedCount = 0;
+        var versionCount = 0;
 
-var wlm = GlideWhiteListManager.get();
-try {
-  if (RUN_AS_MAINT) {
-    // Add some API members to whitelist to avoid excessive logging from whitelist manager
-    whitelist.forEach(function (api) {
-      if (!wlm.isVisibleMember(api.name, api.member, api.signature)) {
-        // gs.info('Adding member to whitelist: ' + api.name + ':' + api.member);
-        api.modified = true;
-        wlm.addToMemberWhitelist(api.name, api.member, api.signature);
-      }
-    });
-  }
+        var gr = new GlideRecord("sys_update_version");
+        gr.setWorkflow(false);
+        gr.addQuery("name", "IN", Object.keys(UPDATE_NAMES).join());
+        gr.orderByDesc("sys_created_on", true);
+        gr.query();
 
-  // var startTime = new Date().getTime();
-  main();
-  // var endTime = new Date().getTime();
-  // gs.info("Execution time: " + (endTime - startTime) + "ms");
-} finally {
-  if (RUN_AS_MAINT) {
-    // Remove any whitelist members that were added
-    whitelist.forEach(function (api) {
-      if (api.modified) {
-        // gs.info('Removing member from whitelist: ' + api.name + ':' + api.member);
-        wlm.removeFromMemberWhitelist(api.name, api.member, api.signature);
-      }
-    });
-  }
-}
+        while(gr.next()){
+            var name = gr.getValue("name"),
+                state = gr.state.toString(),
+                payload = gr.getValue("payload"),
+                sourceTable = gr.source_table.toString();
 
-/**
- * Finds all columns [sys_dictionary] with a script-like internal type and the
- * tables they belong to.
- * @returns {ScriptTableMap}
- */
-function getScriptTablesAndColumns() {
-  var tableMap = {};
+            if(sourceTable == "sys_upgrade_history") {
+                UPDATE_NAMES[name].customerCreatedFile = false;
+                flaggedCount++;
+            }
 
-  var sys_dictionary = GlideRecord("sys_dictionary");
-  sys_dictionary.setWorkflow(false);
-  sys_dictionary
-    .addQuery("internal_type", "script")
-    .addOrCondition("internal_type", "script_client")
-    .addOrCondition("internal_type", "script_plain")
-    .addOrCondition("internal_type", "script_server");
-  sys_dictionary.query();
+            if(state == "current")
+                continue;
 
-  while (sys_dictionary.next()) {
-    var tableName = sys_dictionary.getValue("name");
-    if (!GlideDBObjectManager.get().isMetadataExtension(tableName)) {
-      continue;
-    }
+            if(!payload)
+                continue;
 
-    var columns = (tableMap[tableName] = tableMap[tableName] || []);
-    columns.push({
-      name: sys_dictionary.getValue("element"),
-      internalType: sys_dictionary.getValue("internal_type"),
-      defaultValue: (sys_dictionary.getValue("default_value") || "").replace(
-        /\s+/g,
-        ""
-      )
-    });
-  }
+            var createdOn = new GlideDateTime(gr.getValue("sys_created_on"));
+            var createdInRange = (createdOn.getNumericValue() >= DATE_RANGE.startDate.getNumericValue() && createdOn.getNumericValue() <= DATE_RANGE.endDate.getNumericValue());
+ 
+            if (createdInRange) {
+                if (VERSION_RECORDS[name] === undefined)
+                    VERSION_RECORDS[name] = [];
 
-  return tableMap;
-}
+                VERSION_RECORDS[name].push(payload);
+                versionCount++;
+            } else {
+                //
+                // If the record is not in the date range, we at least want to store the last version so we have something to compare against
+                //
+                if (VERSION_RECORDS[name] === undefined || VERSION_RECORDS[name].length === 0) {
+                    VERSION_RECORDS[name] = [];
+                    VERSION_RECORDS[name].push(payload);
+                    versionCount++;
+                }
+            }
+        }
 
-/**
- * Given a table name, finds the sys_update_name values for all records in
- * the table. Returns an object with the names as keys and true as values.
- * @param {string} tableName
- * @return {Record<string, boolean>}
- */
-function getUpdateNames(tableName) {
-  if (RUN_AS_MAINT) {
-    var names = {};
-    var checker = Packages.com.glide.data.access.TableFactory.get(tableName);
-    checker.addReturnField("sys_update_name");
-    checker.query();
-    while (checker.next()) {
-      names[checker.getValue("sys_update_name")] = true;
-    }
-    return names;
-  } else {
-    var names = {};
-    var gr = new GlideRecord(tableName);
-    gr.setWorkflow(false);
-    gr.query();
-    while (gr.next()) {
-      names[gr.sys_update_name.toString()] = true;
-    }
-    return names;
-  }
-}
+        RESULTS.log["GetVersionRecords"] = { queryTime: sw.getTime(), flaggedCount: flaggedCount, versions: { files: Object.keys(VERSION_RECORDS).length, count: versionCount } };
 
-/**
- * Given the payload of an update XML record and the script-like columns of the
- * table it belongs to, determines if the payload contains any non-default values for
- * the script-like columns. Returns an object with a `handled` boolean and a `lines`
- * number for the total number of lines of code in each column.
- * @param {string} payload
- * @param {ScriptColumn[]} tableColumns
- * @returns {{ handled: boolean, lines: number }}
- */
-function getUpdateHandledInfo(payload, tableColumns) {
-  var handled = false;
-  var lines = 0;
-  for (var i in tableColumns) {
-    var column = tableColumns[i];
+    })();
 
-    var pattern = Packages.java.util.regex.Pattern.compile(
-      "<" +
-        column.name +
-        ">(<\\!\\[CDATA\\[)?([\\s\\S]*?)(\\]\\]>)?<\\/" +
-        column.name +
-        ">"
-    );
-    var matcher = pattern.matcher(payload);
-    if (!matcher.find()) {
-      continue;
-    }
+    //
+    // Now get the update payload for each of these records, check the script fields and count the lines of code
+    //
+    (function(){
+        var sw = new StopWatch();
+        var updatedRecords = {};
+        var maintPattern = Packages.java.util.regex.Pattern.compile("^(.*)@snc(?:\\.(.*))?$");
 
-    var value = "" + matcher.group(2);
-    var sanitizedValue = value.replace(/\s+/g, "");
-    if (sanitizedValue === column.defaultValue || gs.nil(sanitizedValue)) {
-      continue;
-    }
+        var isMaintUser = function(userName) {
+            var matcher = maintPattern.matcher(userName);
+            return matcher.find();
+        };
 
-    // CHANGE VS. LAST AUDIT: Don't count if this is a stub ACL following a common pattern
-    if (
-      sanitizedValue.indexOf("glide.security.allow_unauth_roleless_acl") !== -1
-    ) {
-      continue;
-    }
+        var parsePayload = function(payload, pattern) {
+            var matcher = pattern.matcher(payload);
 
-    lines += (value.match(/\r\n|\r|\n/g) || "").length + 1;
-    handled = true;
-  }
-  return { handled: handled, lines: lines };
-}
+            if(matcher.find()) {
+                var value = "" + matcher.group(2);
+                var sanitizedValue = value.replace(/\s+/g, "");
+                var linesOfCode = (value.match(/\r\n|\r|\n/g) || "").length + 1;
 
-/**
- * Iterates over all sys_update_xml records for a table and finds the ones that
- * meet the criteria for tracking. Mutates the `handledUpdates` map with the
- * relevant information. Also mutates the `seenUpdates` cache to prevent
- * reprocessing the same updates.
- * @param {string} startDate - e.g. "2023-01-01 00:00:00"
- * @param {string} endDate - e.g. "2023-12-31 23:59:59"
- * @param {string} tableName
- * @param {ScriptTableMap} tableMap
- * @param {Record<string, boolean>} updateNames
- * @param {SeenUpdatesCache} seenUpdates
- * @param {UpdateInfoMap} handledUpdates
- */
-function findHandledUpdates(
-  startDate,
-  endDate,
-  tableName,
-  tableColumns,
-  updateNames,
-  seenUpdates,
-  handledUpdates
-) {
-  var sys_update_xml = new GlideRecord("sys_update_xml");
-  sys_update_xml.setWorkflow(false);
-  sys_update_xml.addQuery("name", "IN", Object.keys(updateNames).join());
-  sys_update_xml.addNullQuery("remote_update_set");
-  sys_update_xml.orderByDesc("sys_recorded_at", true);
-  sys_update_xml.addQuery("sys_created_on", ">=", startDate);
-  sys_update_xml.addQuery("sys_created_on", "<=", endDate);
-  sys_update_xml.query();
+                return { sanitizedValue: sanitizedValue, linesOfCode: linesOfCode };
+            }
+        };
 
-  while (true) {
-    var next = sys_update_xml.next();
-    if (!next) {
-      break;
-    }
+        var gr = new GlideRecord("sys_update_xml");
+        gr.setWorkflow(false);
+        gr.addQuery("name", "IN", Object.keys(UPDATE_NAMES).join());
+        gr.addNullQuery("remote_update_set");
+        gr.orderByDesc("sys_recorded_at", true);
+        gr.addQuery("sys_created_on", ">=", DATE_RANGE.startDate);
+        gr.addQuery("sys_created_on", "<=", DATE_RANGE.endDate);
+        gr.query();
 
-    var updateName = sys_update_xml.getValue("name");
-    if (seenUpdates[updateName]) {
-      continue;
-    }
-    seenUpdates[updateName] = true;
+        RESULTS.log["ProcessPayloads"] = { queryTime: sw.getTime(), processingTime: 0 };
+        sw = new StopWatch();
 
-    var replaceOnUpgrade = "" + sys_update_xml.getValue("replace_on_upgrade"); // Must convert to JS string
-    var action = "" + sys_update_xml.getValue("action"); // Must convert to JS string
-    if (replaceOnUpgrade === "1" || action === "DELETE") {
-      continue;
-    }
+        while(gr.next()) {
+            var name = gr.getValue("name"),
+                createdBy = "" + gr.getValue("sys_created_by"),
+                updateName = UPDATE_NAMES[name],
+                tableName = updateName.tableName,
+                tableFields = updateName.tableFields,
+                fileCreatedOn = new GlideDateTime(updateName.createdOn),
+                payload = gr.getValue("payload"),
+                replaceOnUpgrade = "" + gr.getValue("replace_on_upgrade"),
+                action = "" + gr.getValue("action");
 
-    var payload = sys_update_xml.getValue("payload");
-    if (!payload) {
-      continue;
-    }
+            if(updatedRecords[name] !== undefined)
+                continue;
 
-    var handledInfo = getUpdateHandledInfo(payload, tableColumns);
+            updatedRecords[name] = true;
 
-    if (handledInfo.handled) {
-      handledUpdates[updateName] = {
-        lines: handledInfo.lines,
-        tableName: tableName
-      };
-    }
-  }
-}
+            if (replaceOnUpgrade === "1" || action === "DELETE")
+                continue;
 
-/**
- * Given a list of update names, finds the ones that were not created by the
- * customer. Mutates the updateMap object by adding a key `createdByCustomer`
- * for each update with a boolean value.
- * @param {UpdateInfoMap} updateMap
- */
-function findUpdatesCreatedByCustomer(updateMap) {
-  var sys_update_version = new GlideRecord("sys_update_version");
-  sys_update_version.setWorkflow(false);
-  sys_update_version.addQuery("source_table", "sys_upgrade_history");
-  sys_update_version.addQuery("name", "IN", Object.keys(updateMap).join());
-  sys_update_version.query();
+            if(!payload)
+                continue;
 
-  while (sys_update_version.next()) {
-    updateMap[sys_update_version.getValue("name")].createdByCustomer = false;
-  }
+            if(createdBy == "system" || createdBy == "guest" || isMaintUser(createdBy)) {
+                RESULTS.ommittedRecords.maint++;
+                continue;
+            }
 
-  for (var updateName in updateMap) {
-    if (typeof updateMap[updateName].createdByCustomer === "undefined") {
-      updateMap[updateName].createdByCustomer = true;
-    }
-  }
-}
+            for(var i = 0; i < tableFields.length; i++){
+                var field = tableFields[i];
+                var pattern = Packages.java.util.regex.Pattern.compile(
+                    "<" +
+                    field.name +
+                    ">(<\\!\\[CDATA\\[)?([\\s\\S]*?)(\\]\\]>)?<\\/" +
+                    field.name +
+                    ">"
+                );
+                var currentScriptVersion = parsePayload(payload, pattern);
 
-/**
- * Map of table names with script-like columns to the columns themselves.
- * @typedef {Record<string, ScriptColumn[]>} ScriptTableMap
- */
+                if(currentScriptVersion !== undefined && currentScriptVersion.sanitizedValue !== field.defaultValue) {
 
-/**
- * Definiton of a script-like column found in sys_dictionary.
- * @typedef {Object} ScriptColumn
- * @property {string} name - Technical name of the column (sys_dictionary.element)
- * @property {"script"|"script_client"|"script_plain"|"script_server"} internalType - Data type of the column (sys_dictionary.internal_type)
- * @property {string} defaultValue - Default value of the column (sys_dictionary.default_value)
- */
+                    if(currentScriptVersion.sanitizedValue.indexOf("glide.security.allow_unauth_roleless_acl") != -1) {
+                        RESULTS.ommittedRecords.acl++;
+                        continue;
+                    }
 
-/**
- * Cache of update names that have been processed.
- * @typedef {Record<string, boolean>} SeenUpdatesCache
- */
+                    if(field.name == "client_script_v2" && currentScriptVersion.sanitizedValue == "functiononClick(g_form){}"){
+                        RESULTS.ommittedRecords.clientScriptV2++;
+                        continue;
+                    }
 
-/**
- * Cache of update names that have been processed and meet the criteria for tracking.
- * @typedef {Record<string, { lines: number, tableName: string, createdByCustomer: (boolean|undefined) }>} UpdateInfoMap
- */
+                    var fileCreatedInSameDateRange = (fileCreatedOn.getNumericValue() >= DATE_RANGE.startDate.getNumericValue() && fileCreatedOn.getNumericValue() <= DATE_RANGE.endDate.getNumericValue());
+                    var scriptFieldChanged = false;
+                    var linesOfCode = 0;
+
+                    //
+                    // Loop through version records and check if the field value has changed
+                    //
+                    if(VERSION_RECORDS[name] !== undefined) {
+                        var currentVersion = currentScriptVersion;
+
+                        for(var j = 0; j < VERSION_RECORDS[name].length; j++){
+                            var previousScriptVersion = parsePayload(VERSION_RECORDS[name][j], pattern);
+
+                            if(previousScriptVersion !== undefined && previousScriptVersion.sanitizedValue !== currentVersion.sanitizedValue){
+                                scriptFieldChanged = true;
+                                linesOfCode += Math.abs(currentVersion.linesOfCode - previousScriptVersion.linesOfCode);
+                                currentVersion = previousScriptVersion;
+                            }
+                        }
+                    } else {
+                        scriptFieldChanged = true;
+                        linesOfCode = currentScriptVersion.linesOfCode;
+                    }
+
+                    if(RESULTS.summary === undefined){
+                        RESULTS.summary = {
+                            // ootbFileModification
+                            o: 0,
+                            // customerFileModification
+                            c: 0,
+                            // customerCreatedFileInSameRange
+                            cc: 0,
+                            // linesOfCode
+                            l: 0,
+                            // notChanged
+                            noop: 0
+                        };
+                    }
+
+                    if(RESULTS.tables[tableName] === undefined){
+                        RESULTS.tables[tableName] = {
+                            // fields
+                            f: {},
+                            // ootbFileModification
+                            o: 0,
+                            // customerFileModification
+                            c: 0,
+                            // customerCreatedFileInSameRange
+                            cc: 0,
+                            // linesOfCode
+                            l: 0,
+                            // notChanged
+                            noop: 0
+                        };
+                    }
+
+                    if(RESULTS.tables[tableName].f[field.name] === undefined){
+                        RESULTS.tables[tableName].f[field.name] = {
+                            // ootbFileModification
+                            o: 0,
+                            // customerFileModification
+                            c: 0,
+                            // linesOfCode
+                            l: 0,
+                            // notChanged
+                            noop: 0
+                        };
+                    }
+
+                    if(scriptFieldChanged){
+                        RESULTS.summary.l += linesOfCode;
+                        RESULTS.tables[tableName].l += linesOfCode;
+                        RESULTS.tables[tableName].f[field.name].l += linesOfCode;
+
+                        if(updateName.customerCreatedFile) {
+                            RESULTS.summary.c++;
+                            RESULTS.summary.cc += (fileCreatedInSameDateRange ? 1 : 0);
+                            RESULTS.tables[tableName].c++;
+                            RESULTS.tables[tableName].cc += (fileCreatedInSameDateRange ? 1 : 0);
+                            RESULTS.tables[tableName].f[field.name].c++;
+                        } 
+                        else {
+                            RESULTS.summary.o++;
+                            RESULTS.tables[tableName].o++;
+                            RESULTS.tables[tableName].f[field.name].o++;
+                        }
+                    } else {
+                        RESULTS.summary.noop++;
+                        RESULTS.tables[tableName].noop++;
+                        RESULTS.tables[tableName].f[field.name].noop++;
+                    }
+                }
+            }
+        }
+
+        RESULTS.log["ProcessPayloads"].processingTime = sw.getTime();
+
+    })();
+
+    gs.print(JSON.stringify(RESULTS));
+
+})();

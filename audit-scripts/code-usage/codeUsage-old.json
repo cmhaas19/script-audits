@@ -1,0 +1,35 @@
+{
+    "all":{
+            "rc":1293,
+            "loc":43271,
+            "crc":1276,
+            "cloc":42623
+    },
+    "byTable": {
+        "scheduled_data_import":{"rc":14,"loc":205,"crc":14,"cloc":205},
+        "sys_ui_action":{"rc":27,"loc":900,"crc":24,"cloc":826},
+        "sp_widget":{"rc":17,"loc":3635,"crc":16,"cloc":3570},
+        "sys_data_source":{"rc":15,"loc":75,"crc":15,"cloc":75},
+        "sys_script":{"rc":170,"loc":4653,"crc":167,"cloc":4556},
+        "sysevent_email_action":{"rc":82,"loc":535,"crc":77,"cloc":510},
+        "sys_ux_client_script":{"rc":3,"loc":48,"crc":3,"cloc":48},
+        "sc_cat_item_producer":{"rc":191,"loc":1670,"crc":191,"cloc":1670},
+        "sn_doc_pdf_template_mapping":{"rc":13,"loc":90,"crc":13,"cloc":90},
+        "sys_script_client":{"rc":332,"loc":12267,"crc":332,"cloc":12267},
+        "item_option_new":{"rc":1,"loc":1,"crc":1,"cloc":1},
+        "sn_hr_le_activity_field_mapping":{"rc":3,"loc":30,"crc":3,"cloc":30},
+        "sys_ui_page":{"rc":4,"loc":381,"crc":4,"cloc":381},
+        "sys_script_fix":{"rc":31,"loc":963,"crc":31,"cloc":963},
+        "user_criteria":{"rc":68,"loc":753,"crc":68,"cloc":753},
+        "usageanalytics_count_cfg":{"rc":23,"loc":354,"crc":23,"cloc":354},
+        "sys_transform_entry":{"rc":30,"loc":254,"crc":30,"cloc":254},
+        "sys_ui_policy":{"rc":52,"loc":329,"crc":52,"cloc":329},
+        "sys_script_include":{"rc":40,"loc":10414,"crc":39,"cloc":10252},
+        "pa_scripts":{"rc":1,"loc":4,"crc":1,"cloc":4},
+        "sys_script_email":{"rc":44,"loc":1599,"crc":44,"cloc":1599},
+        "sys_transform_script":{"rc":19,"loc":612,"crc":19,"cloc":612},
+        "sys_security_acl":{"rc":78,"loc":2493,"crc":75,"cloc":2291},
+        "sysevent_in_email_action":{"rc":30,"loc":780,"crc":29,"cloc":757},
+        "sp_instance":{"rc":5,"loc":226,"crc":5,"cloc":226}
+        }
+    }
