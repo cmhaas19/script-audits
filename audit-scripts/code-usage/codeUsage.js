@@ -257,13 +257,13 @@
 
             for(var i = 0; i < tableFields.length; i++){
                 var field = tableFields[i];
+                var omitField = false;
+                var scriptFieldChanged = false;
+                var linesOfCodeChanged = 0;
                 var pattern = Packages.java.util.regex.Pattern.compile("<" + field.name + ">(<\\!\\[CDATA\\[)?([\\s\\S]*?)(\\]\\]>)?<\\/" + field.name + ">");
                 var currentScriptVersion = parsePayload(payload, pattern);
 
                 if(currentScriptVersion !== undefined && currentScriptVersion.sanitizedValue !== field.defaultValue) {
-                    var omitField = false;
-                    var scriptFieldChanged = false;
-                    var linesOfCodeChanged = 0;                    
 
                     if(RESULTS.tables[tableName].f[field.name] === undefined){
                         RESULTS.tables[tableName].f[field.name] = {
@@ -330,7 +330,7 @@
                         // Track the nuber of lines of code changed
                         RESULTS.summary.l += linesOfCodeChanged;
                         RESULTS.tables[tableName].l += linesOfCodeChanged;
-                        RESULTS.tables[tableName].f[field.name].l = linesOfCodeChanged;
+                        RESULTS.tables[tableName].f[field.name].l += linesOfCodeChanged;
 
                         if(updateName.customerCreatedFile) {
                             // Track as a customer file modification
