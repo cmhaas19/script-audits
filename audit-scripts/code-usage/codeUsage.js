@@ -20,19 +20,19 @@
 
     // Turn off excess logging for the Regex Matcher
     // NOTE: Be sure to remove this before submitting the script audit, the instance analyzer team considers these calls a write audit
+    /*
     var wlm = GlideWhiteListManager.get();
     if (!wlm.isVisibleMember("java.util.regex.Matcher", "find", "()Z")) {
         wlm.addToMemberWhitelist("java.util.regex.Matcher", "find", "()Z");
     }
+    */
 
     //
     // Initialize date ranges
     //
-    /*
     var today = new GlideDateTime();
     DATE_RANGE.startDate.setYearUTC((today.getYear() - 1));
-    DATE_RANGE.endDate.setYearUTC((today.getYear() - 1));  
-    */         
+    DATE_RANGE.endDate.setYearUTC((today.getYear() - 1));          
     RESULTS.log["DateRanges"] = { s: DATE_RANGE.startDate.getValue(), e: DATE_RANGE.endDate.getValue()};        
 
 
@@ -274,7 +274,9 @@
                             // linesOfCode
                             l: 0,
                             // unChanged
-                            unc: 0
+                            unc: 0,
+                            // omit
+                            om: 0
                         };
                     }
 
@@ -289,7 +291,7 @@
                     }
 
                     if(omitField){
-                        RESULTS.tables[tableName].f[field.name].o++;
+                        RESULTS.tables[tableName].f[field.name].om++;
                         continue;
                     }
 
