@@ -1,11 +1,11 @@
 
 (function(){
 
-    var DATE_RANGE = { startDate: new GlideDateTime("2011-01-01 00:00:00"), endDate: new GlideDateTime("2011-12-31 23:59:59")};
+    var DATE_RANGE = { startDate: new GlideDateTime("2020-01-01 00:00:00"), endDate: new GlideDateTime("2024-12-31 23:59:59")};
     var TABLES_WITH_SCRIPT_FIELDS = {};
     var UPDATE_NAMES = {};
     var VERSION_RECORDS = {};
-    var RESULTS = { log: {}, ommittedRecords: { acl: 0, maint: 0, clientScriptV2: 0 }, tables: {} };
+    var RESULTS = { log: {}, summary: {}, tables: {} };
 
     var StopWatch = function() {
         var start = new GlideDateTime();
@@ -18,13 +18,23 @@
         };
     };
 
+    // Turn off excess logging for the Regex Matcher
+    // NOTE: Be sure to remove this before submitting the script audit, the instance analyzer team considers these calls a write audit
+    var wlm = GlideWhiteListManager.get();
+    if (!wlm.isVisibleMember("java.util.regex.Matcher", "find", "()Z")) {
+        wlm.addToMemberWhitelist("java.util.regex.Matcher", "find", "()Z");
+    }
+
     //
     // Initialize date ranges
     //
+    /*
     var today = new GlideDateTime();
     DATE_RANGE.startDate.setYearUTC((today.getYear() - 1));
-    DATE_RANGE.endDate.setYearUTC((today.getYear() - 1));       
+    DATE_RANGE.endDate.setYearUTC((today.getYear() - 1));  
+    */         
     RESULTS.log["DateRanges"] = { s: DATE_RANGE.startDate.getValue(), e: DATE_RANGE.endDate.getValue()};        
+
 
     //
     // Get metadata tables with script fields
@@ -113,7 +123,11 @@
                 flaggedCount++;
             }
 
-            if(state == "current")
+            //
+            // We only care about 'previous' versions. 'Current' represents the sys_update_xml record we already have and 'History'
+            // records can come after the current version (they are essentially 'Skip' records)
+            //
+            if(state != "previous")
                 continue;
 
             if(!payload)
@@ -122,21 +136,16 @@
             var createdOn = new GlideDateTime(gr.getValue("sys_created_on"));
             var createdInRange = (createdOn.getNumericValue() >= DATE_RANGE.startDate.getNumericValue() && createdOn.getNumericValue() <= DATE_RANGE.endDate.getNumericValue());
  
+            //
+            // Store this version record if it was created within the date range or if it's the first version record we've seen
+            //
             if (createdInRange) {
-                if (VERSION_RECORDS[name] === undefined)
-                    VERSION_RECORDS[name] = [];
-
+                VERSION_RECORDS[name] = VERSION_RECORDS[name] || [];
                 VERSION_RECORDS[name].push(payload);
                 versionCount++;
-            } else {
-                //
-                // If the record is not in the date range, we at least want to store the last version so we have something to compare against
-                //
-                if (VERSION_RECORDS[name] === undefined || VERSION_RECORDS[name].length === 0) {
-                    VERSION_RECORDS[name] = [];
-                    VERSION_RECORDS[name].push(payload);
-                    versionCount++;
-                }
+            } else if (VERSION_RECORDS[name] === undefined) {
+                VERSION_RECORDS[name] = [payload];
+                versionCount++;
             }
         }
 
@@ -169,11 +178,26 @@
             }
         };
 
+        RESULTS.summary = {
+            // ootbFileModification
+            o: 0,
+            // customerFileModification
+            c: 0,
+            // customerCreatedFileInSameRange
+            cc: 0,
+            // linesOfCode
+            l: 0,
+            // unChanged
+            unc: 0,
+            // maint
+            m: 0
+        };
+
         var gr = new GlideRecord("sys_update_xml");
         gr.setWorkflow(false);
         gr.addQuery("name", "IN", Object.keys(UPDATE_NAMES).join());
         gr.addNullQuery("remote_update_set");
-        gr.orderByDesc("sys_recorded_at", true);
+        gr.orderByDesc("sys_recorded_at");
         gr.addQuery("sys_created_on", ">=", DATE_RANGE.startDate);
         gr.addQuery("sys_created_on", "<=", DATE_RANGE.endDate);
         gr.query();
@@ -183,14 +207,16 @@
 
         while(gr.next()) {
             var name = gr.getValue("name"),
-                createdBy = "" + gr.getValue("sys_created_by"),
                 updateName = UPDATE_NAMES[name],
                 tableName = updateName.tableName,
                 tableFields = updateName.tableFields,
                 fileCreatedOn = new GlideDateTime(updateName.createdOn),
+                fileCreatedInSameDateRange = (fileCreatedOn.getNumericValue() >= DATE_RANGE.startDate.getNumericValue() && fileCreatedOn.getNumericValue() <= DATE_RANGE.endDate.getNumericValue()),
                 payload = gr.getValue("payload"),
                 replaceOnUpgrade = "" + gr.getValue("replace_on_upgrade"),
-                action = "" + gr.getValue("action");
+                action = "" + gr.getValue("action"),
+                createdBy = "" + gr.getValue("sys_created_by"),
+                updateHasScriptChanges = false;
 
             if(updatedRecords[name] !== undefined)
                 continue;
@@ -203,89 +229,41 @@
             if(!payload)
                 continue;
 
-            if(createdBy == "system" || createdBy == "guest" || isMaintUser(createdBy)) {
-                RESULTS.ommittedRecords.maint++;
+            if(RESULTS.tables[tableName] === undefined){
+                RESULTS.tables[tableName] = {
+                    // fields
+                    f: {},
+                    // ootbFileModification
+                    o: 0,
+                    // customerFileModification
+                    c: 0,
+                    // customerCreatedFileInSameRange
+                    cc: 0,
+                    // linesOfCode
+                    l: 0,
+                    // unChanged
+                    unc: 0,
+                    // maint
+                    m: 0
+                };
+            }
+
+            // If this change was done by ServiceNow, don't process it
+            if(createdBy == "system" || createdBy == "guest" || isMaintUser(createdBy)){
+                RESULTS.summary.m++;
+                RESULTS.tables[tableName].m++;
                 continue;
             }
 
             for(var i = 0; i < tableFields.length; i++){
                 var field = tableFields[i];
-                var pattern = Packages.java.util.regex.Pattern.compile(
-                    "<" +
-                    field.name +
-                    ">(<\\!\\[CDATA\\[)?([\\s\\S]*?)(\\]\\]>)?<\\/" +
-                    field.name +
-                    ">"
-                );
+                var pattern = Packages.java.util.regex.Pattern.compile("<" + field.name + ">(<\\!\\[CDATA\\[)?([\\s\\S]*?)(\\]\\]>)?<\\/" + field.name + ">");
                 var currentScriptVersion = parsePayload(payload, pattern);
 
                 if(currentScriptVersion !== undefined && currentScriptVersion.sanitizedValue !== field.defaultValue) {
-
-                    if(currentScriptVersion.sanitizedValue.indexOf("glide.security.allow_unauth_roleless_acl") != -1) {
-                        RESULTS.ommittedRecords.acl++;
-                        continue;
-                    }
-
-                    if(field.name == "client_script_v2" && currentScriptVersion.sanitizedValue == "functiononClick(g_form){}"){
-                        RESULTS.ommittedRecords.clientScriptV2++;
-                        continue;
-                    }
-
-                    var fileCreatedInSameDateRange = (fileCreatedOn.getNumericValue() >= DATE_RANGE.startDate.getNumericValue() && fileCreatedOn.getNumericValue() <= DATE_RANGE.endDate.getNumericValue());
+                    var omitField = false;
                     var scriptFieldChanged = false;
-                    var linesOfCode = 0;
-
-                    //
-                    // Loop through version records and check if the field value has changed
-                    //
-                    if(VERSION_RECORDS[name] !== undefined) {
-                        var currentVersion = currentScriptVersion;
-
-                        for(var j = 0; j < VERSION_RECORDS[name].length; j++){
-                            var previousScriptVersion = parsePayload(VERSION_RECORDS[name][j], pattern);
-
-                            if(previousScriptVersion !== undefined && previousScriptVersion.sanitizedValue !== currentVersion.sanitizedValue){
-                                scriptFieldChanged = true;
-                                linesOfCode += Math.abs(currentVersion.linesOfCode - previousScriptVersion.linesOfCode);
-                                currentVersion = previousScriptVersion;
-                            }
-                        }
-                    } else {
-                        scriptFieldChanged = true;
-                        linesOfCode = currentScriptVersion.linesOfCode;
-                    }
-
-                    if(RESULTS.summary === undefined){
-                        RESULTS.summary = {
-                            // ootbFileModification
-                            o: 0,
-                            // customerFileModification
-                            c: 0,
-                            // customerCreatedFileInSameRange
-                            cc: 0,
-                            // linesOfCode
-                            l: 0,
-                            // notChanged
-                            noop: 0
-                        };
-                    }
-
-                    if(RESULTS.tables[tableName] === undefined){
-                        RESULTS.tables[tableName] = {
-                            // fields
-                            f: {},
-                            // ootbFileModification
-                            o: 0,
-                            // customerFileModification
-                            c: 0,
-                            // customerCreatedFileInSameRange
-                            cc: 0,
-                            // linesOfCode
-                            l: 0,
-                            // notChanged
-                            noop: 0
-                        };
-                    }
+                    var linesOfCodeChanged = 0;                    
 
                     if(RESULTS.tables[tableName].f[field.name] === undefined){
                         RESULTS.tables[tableName].f[field.name] = {
@@ -295,34 +273,100 @@
                             c: 0,
                             // linesOfCode
                             l: 0,
-                            // notChanged
-                            noop: 0
+                            // unChanged
+                            unc: 0
                         };
                     }
 
+                    // A write audit from ServiceNow generated a ton of ACL changes. Make sure we flag them
+                    if(currentScriptVersion.sanitizedValue.indexOf("glide.security.allow_unauth_roleless_acl") != -1) {
+                        omitField = true;
+                    }
+
+                    // This annoying field on UI Actions sets its default value via a UI policy or client script so it passes the default value check above. Make sure we flag it.
+                    if(field.name == "client_script_v2" && currentScriptVersion.sanitizedValue == "functiononClick(g_form){}"){
+                        omitField = true;
+                    }
+
+                    if(omitField){
+                        RESULTS.tables[tableName].f[field.name].o++;
+                        continue;
+                    }
+
+                    //
+                    // Loop through version records and check if the field value has changed
+                    //
+                    if(VERSION_RECORDS[name] !== undefined && VERSION_RECORDS[name].length > 0) {
+                        var currentVersion = currentScriptVersion;
+
+                        for(var j = 0; j < VERSION_RECORDS[name].length; j++){
+                            var previousScriptVersion = parsePayload(VERSION_RECORDS[name][j], pattern);
+
+                            if(previousScriptVersion !== undefined && previousScriptVersion.sanitizedValue !== currentVersion.sanitizedValue){
+                                
+                                // Calculate the difference in lines of code
+                                var linesChanged = Math.abs(currentVersion.linesOfCode - previousScriptVersion.linesOfCode);
+
+                                // If the lines of code are the same, add at least 1 as something has changed to get this far
+                                linesOfCodeChanged += (linesChanged > 0 ? linesChanged : 1);
+
+                                // Make sure to mark this as changed
+                                scriptFieldChanged = true;
+                                
+                                currentVersion = previousScriptVersion;                                
+                            }
+                        }
+                    } else {
+                        // If no version records exists, this is most likely the first version of the record
+                        scriptFieldChanged = true;
+                        linesOfCodeChanged = currentScriptVersion.linesOfCode;
+                    }
+
+                    // If we detect a script field change, flag it so we count the file as modified
+                    updateHasScriptChanges = (updateHasScriptChanges || scriptFieldChanged);
+
                     if(scriptFieldChanged){
-                        RESULTS.summary.l += linesOfCode;
-                        RESULTS.tables[tableName].l += linesOfCode;
-                        RESULTS.tables[tableName].f[field.name].l += linesOfCode;
+
+                        // Track the nuber of lines of code changed
+                        RESULTS.summary.l += linesOfCodeChanged;
+                        RESULTS.tables[tableName].l += linesOfCodeChanged;
+                        RESULTS.tables[tableName].f[field.name].l = linesOfCodeChanged;
 
                         if(updateName.customerCreatedFile) {
-                            RESULTS.summary.c++;
-                            RESULTS.summary.cc += (fileCreatedInSameDateRange ? 1 : 0);
-                            RESULTS.tables[tableName].c++;
-                            RESULTS.tables[tableName].cc += (fileCreatedInSameDateRange ? 1 : 0);
+                            // Track as a customer file modification
                             RESULTS.tables[tableName].f[field.name].c++;
                         } 
                         else {
-                            RESULTS.summary.o++;
-                            RESULTS.tables[tableName].o++;
+                            // Track as an OOTB file modification
                             RESULTS.tables[tableName].f[field.name].o++;
                         }
                     } else {
-                        RESULTS.summary.noop++;
-                        RESULTS.tables[tableName].noop++;
-                        RESULTS.tables[tableName].f[field.name].noop++;
+                        // Since the script feilds didn't change, track as unchanged
+                        RESULTS.tables[tableName].f[field.name].unc++;
                     }
                 }
+            } // end field loop
+
+            if(updateHasScriptChanges) {
+                if(updateName.customerCreatedFile) {
+                    // Track as a customer file modification
+                    RESULTS.summary.c++;
+                    RESULTS.tables[tableName].c++;
+
+                    // If the file was created within the date range, track as a customer created file
+                    RESULTS.summary.cc += (fileCreatedInSameDateRange ? 1 : 0);
+                    RESULTS.tables[tableName].cc += (fileCreatedInSameDateRange ? 1 : 0);
+                } 
+                else {
+                    // Track as an OOTB file modification
+                    RESULTS.summary.o++;
+                    RESULTS.tables[tableName].o++;
+                }
+
+            } else {
+                // Since the script feilds didn't change, track as unchanged
+                RESULTS.summary.unc++;
+                RESULTS.tables[tableName].unc++;
             }
         }
 
