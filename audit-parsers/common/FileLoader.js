@@ -2,6 +2,7 @@ const path = require('path');
 const fastCsv = require("fast-csv");
 const EMPTY_PAYLOAD = "Empty Payload";
 const AUDIT_STATE_COMPLETED = "Completed";
+const AUDIT_STATE_FAILED = "Failed";
 const CUSTOMER_ACCOUNTS_FILENAME = "files/all-customer-accounts.csv";
 const APP_ENGINE_ACCOUNTS_FILENAME = "files/app-engine-accounts.csv";
 const CUSTOMER_INSTANCES_FILENAME = "files/customer-instances.csv";
@@ -41,6 +42,18 @@ var loadAccountData = () => {
 		var accounts = {};
         var fileName = path.join(__dirname, CUSTOMER_ACCOUNTS_FILENAME);
 
+        var parseACV = function(text) {
+            if(text.trim().length == 0)
+                return 0;
+
+            var acv = parseFloat(text.replace(/,/g, ''));
+
+            if(isNaN(acv))
+                return 0;
+
+            return acv;
+        };
+
 		fastCsv.parseFile(fileName)
 			.on("data", data => {
 				var accountNo = data[0];
@@ -52,7 +65,7 @@ var loadAccountData = () => {
                     solutionConsultant: data[4],
                     city: "",
                     country: "",
-                    totalACV: (isNaN(data[5]) ? 0 : parseFloat(data[5])),
+                    totalACV: parseACV(data[5]),
                     accountType: data[2],
                     isAppEngineSubscriber: false
 				};
@@ -115,7 +128,7 @@ var loadInstancesAndAccounts = function(instanceType) {
                                 solutionConsultant: "",
                                 city: "",
                                 country: "",
-                                totalACV: "",
+                                totalACV: 0,
                                 accountType: "",
                                 isAppEngineSubscriber: false
                             };
@@ -164,7 +177,7 @@ var loadFileWithInstancesAndAccounts = function(fileName) {
                                     solutionConsultant: "",
                                     city: "",
                                     country: "",
-                                    totalACV: "",
+                                    totalACV: 0,
                                     accountType: "",
                                     isAppEngineSubscriber: false
                                 }
@@ -225,14 +238,18 @@ var parseCsvFile = (fileName) => {
 				success: (data[0] == AUDIT_STATE_COMPLETED)
 			};
 
-            var response = parsePayload(data[3]);
-
-            if(response.success) {
-                row.data = response.data;
-                row.success = true;
+            if(row.auditState == AUDIT_STATE_FAILED) {
+                row.errorDescription = data[1];
             } else {
-                row.success = false;
-                row.errorDescription = response.errorMessage;
+                var response = parsePayload(data[3]);
+
+                if(response.success) {
+                    row.data = response.data;
+                    row.success = true;
+                } else {
+                    row.success = false;
+                    row.errorDescription = response.errorMessage;
+                }
             }
 
             auditData.push(row);

@@ -11,6 +11,7 @@ class AuditWorksheet {
         var defaultColumns = [
             { header: 'Company', width: 42 },
             { header: 'Account No.', width: 12 },
+            { header: 'ACV', width: 12 },
             { header: 'Account Type', width: 17 },
             { header: 'Primary Rep', width: 22 },
             { header: 'Solution Consultant', width: 23 },
@@ -25,6 +26,7 @@ class AuditWorksheet {
             { header: 'Instance Name', width: 22 },
             { header: 'Company', width: 42 },
             { header: 'Account No.', width: 12 },
+            { header: 'ACV', width: 12 },
             { header: 'Account Type', width: 17 },
             { header: 'Primary Rep', width: 22 },
             { header: 'Solution Consultant', width: 23 },
@@ -53,7 +55,8 @@ class AuditWorksheet {
         if(account) {
             rowValues = [
                 account.accountName, 
-                account.accountNo, 
+                account.accountNo,
+                account.totalACV,  
                 account.accountType, 
                 account.primarySalesRep, 
                 account.solutionConsultant, 
@@ -62,6 +65,7 @@ class AuditWorksheet {
         }                
         else {
             rowValues = [
+                "",
                 "",
                 "",
                 "",
@@ -90,6 +94,7 @@ class AuditWorksheet {
                 instanceName, 
                 instanceInfo.account.accountName, 
                 instanceInfo.account.accountNo, 
+                instanceInfo.account.totalACV,
                 instanceInfo.account.accountType, 
                 instanceInfo.account.primarySalesRep, 
                 instanceInfo.account.solutionConsultant, 
@@ -101,6 +106,7 @@ class AuditWorksheet {
         else {
             rowValues = [
                 instanceName,
+                "",
                 "",
                 "",
                 "",

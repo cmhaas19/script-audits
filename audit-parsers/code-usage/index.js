@@ -11,73 +11,120 @@ var process = () => {
 
         FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
 
-            var wb = new Audit.AuditWorkbook("code-usage-results.xlsx");
+            var wb = new Audit.AuditWorkbook("code-usage-results2.xlsx");
 
             //
             // Code usage summary
             //
-            (function(){
-                var ws = wb.addWorksheet("Code Usage");
+            var ws = wb.addWorksheet("Code Usage Summary");
+            var wsTable = wb.addWorksheet("Code Usage - By Table");
+            var wsFields = wb.addWorksheet("Code Usage - By Field");
+            var wsErrors = wb.addWorksheet('Errors');
 
-                ws.setStandardColumns([
-                    { header: 'No. of OOTB files modified', width: 25 },
-                    { header: 'Records Changed', width: 25 },
-                    { header: 'Lines of Code Changed', width: 25 },
-                    { header: 'Customer Records Changed', width: 25 },
-                    { header: 'Customer Lines of Code Changed', width: 25 }
-                ]);
+            wsErrors.setStandardColumns([
+                { header: 'Error Description', width: 42 }
+            ]);
 
-                auditData.forEach((row) => {
-                    if(row.data && row.data.all) { 
-                        var all = row.data.all;
+            ws.setStandardColumns([
+                { header: 'Start Date', width: 25 },
+                { header: 'End Date', width: 25 },
+                { header: 'Total Files Modified', width: 25 },
+                { header: 'OOTB Files Modified', width: 25 },
+                { header: 'Total Customer Files Modified', width: 25 },
+                { header: 'Customer Files Modified - Existing', width: 25 },
+                { header: 'Customer Files Modified - New', width: 25 },
+                { header: 'Total Lines of Code Changed', width: 25 },
+                { header: 'Excluded: Modified Files with unchanged script fields', width: 25 },
+                { header: 'Excluded: Modified Files by ServiceNow', width: 25 }
+            ]);
 
-                        var record = {
-                            ootbFilesModified: (all.rc - all.crc),
-                            recordsChanged: all.rc,
-                            linesOfCodeChanged: all.loc,
-                            customerRecordsChanged: all.crc,
-                            customerLinesOfCodeChanged: all.cloc
-                        };
+            wsTable.setStandardColumns([
+                { header: 'Table Name', width: 25 },
+                { header: 'Total Files Modified', width: 25 },
+                { header: 'OOTB Files Modified', width: 25 },
+                { header: 'Total Customer Files Modified', width: 25 },
+                { header: 'Customer Files Modified - Existing', width: 25 },
+                { header: 'Customer Files Modified - New', width: 25 },
+                { header: 'Total Lines of Code Changed', width: 25 },
+                { header: 'Excluded: Modified Files with unchanged script fields', width: 25 },
+                { header: 'Excluded: Modified Files by ServiceNow', width: 25 }
+            ]);
 
-                        ws.addStandardRow(row.instanceName, row.instance, record); 
-                    }
-                });
-            })();
+            wsFields.setStandardColumns([
+                { header: 'Table Name', width: 25 },
+                { header: 'Field Name', width: 25 },
+                { header: 'Total Files Modified', width: 25 },
+                { header: 'Total OOTB Files Modified', width: 25 },
+                { header: 'Total Customer Files Modified', width: 25 },
+                { header: 'Total Lines of Code Changed', width: 25 },
+                { header: 'Excluded: Modified Files with unchanged script fields', width: 25 },
+                { header: 'Excluded: Omitted Records', width: 25 }
+            ]);
 
-            //
-            // Code usage by table
-            //
-            (function(){
-                var ws = wb.addWorksheet("Code Usage - By Table");
+            auditData.forEach((row) => {
+                if(row.data && row.data.summary) { 
+                    var log = row.data.log;
+                    var summary = row.data.summary;
 
-                ws.setStandardColumns([
-                    { header: 'Table Name', width: 25 },
-                    { header: 'No. of OOTB files modified', width: 25 },
-                    { header: 'Records Changed', width: 25 },
-                    { header: 'Lines of Code Changed', width: 25 },
-                    { header: 'Customer Records Changed', width: 25 },
-                    { header: 'Customer Lines of Code Changed', width: 25 }
-                ]);
+                    var summaryRecord = {
+                        startDate: moment(log.DateRanges.s).format("MM/DD/YYYY"),
+                        endDate: moment(log.DateRanges.e).format("MM/DD/YYYY"),
+                        totalFilesModified: (summary.o + summary.c),
+                        ootbFilesModified: summary.o,
+                        customerFilesModified: summary.c,
+                        customerFilesModifiedExisting: (summary.c - summary.cc),
+                        customerFilesModifiedNew: summary.cc,
+                        linesOfCodeChanged: summary.l,
+                        unchanged: summary.unc,
+                        maint: summary.m
+                    };
 
-                auditData.forEach((row) => {
-                    if(row.data && row.data.byTable) { 
-                        for(var tableName in row.data.byTable) {
-                            var table = row.data.byTable[tableName];
+                    ws.addStandardRow(row.instanceName, row.instance, summaryRecord);
 
-                            var record = {
+                    if(row.data && row.data.tables) { 
+                        for(var tableName in row.data.tables) {
+                            var table = row.data.tables[tableName];
+
+                            var tableRecord = {
                                 tableName,
-                                ootbFilesModified: (table.rc - table.crc),
-                                recordsChanged: table.rc,
-                                linesOfCodeChanged: table.loc,
-                                customerRecordsChanged: table.crc,
-                                customerLinesOfCodeChanged: table.cloc
+                                totalFilesModified: (table.o + table.c),
+                                ootbFilesModified: table.o,
+                                customerFilesModified: table.c,
+                                customerFilesModifiedExisting: (table.c - table.cc),
+                                customerFilesModifiedNew: table.cc,
+                                linesOfCodeChanged: table.l,
+                                unchanged: table.unc,
+                                maint: table.m
                             };
 
-                            ws.addStandardRow(row.instanceName, row.instance, record);  
+                            wsTable.addStandardRow(row.instanceName, row.instance, tableRecord);
+
+                            for(var fieldName in table.f) {
+                                var field = table.f[fieldName];
+
+                                var fieldRecord = {
+                                    tableName,
+                                    fieldName,
+                                    totalFilesModified: (field.o + field.c),
+                                    ootbFilesModified: field.o,
+                                    customerFilesModified: field.c,
+                                    linesOfCodeChanged: field.l,
+                                    unchanged: field.unc,
+                                    omitted: field.om
+                                };
+
+                                wsFields.addStandardRow(row.instanceName, row.instance, fieldRecord);
+                            }
                         }
                     }
-                });
-            })();
+                } else if(!row.success) {
+                    wsErrors.addStandardRow(row.instanceName, row.instance, {
+                        errorDescription: row.errorDescription
+                    });
+                }
+
+                
+            });
             
             wb.commit().then(() => {
                 resolve();
