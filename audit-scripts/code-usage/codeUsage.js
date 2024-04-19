@@ -30,9 +30,9 @@
     //
     // Initialize date ranges
     //
-    var today = new GlideDateTime();
-    DATE_RANGE.startDate.setYearUTC((today.getYear() - 1));
-    DATE_RANGE.endDate.setYearUTC((today.getYear() - 1));          
+    //var today = new GlideDateTime();
+    //DATE_RANGE.startDate.setYearUTC((today.getYear() - 1));
+    //DATE_RANGE.endDate.setYearUTC((today.getYear() - 1));          
     RESULTS.log["DateRanges"] = { s: DATE_RANGE.startDate.getValue(), e: DATE_RANGE.endDate.getValue()};        
 
 
@@ -60,7 +60,10 @@
                 name: gr.getValue("element"),
                 tableName: tableName,
                 internalType: gr.getValue("internal_type"),
-                defaultValue: (gr.getValue("default_value") || "").replace(/\s+/g, "")
+                defaultValue: {
+                    sanitizedValue: (gr.getValue("default_value") || "").replace(/\s+/g, ""),
+                    linesOfCode: (gr.getValue("default_value") || "").split(/\r?\n/).length
+                }
             });
         }
 
@@ -255,6 +258,13 @@
                 continue;
             }
 
+            // 
+            // If the file is customer created and was created within the date range OR we didn't find any previous versions of it, 
+            // make sure we flag it so we count it as a valid change. This important because if a customer updated a file multiple times in the same date range
+            // and those updates didn't change the script fields, we could miss it
+            //
+            var isInitialVersion = ((updateName.customerCreatedFile && fileCreatedInSameDateRange) || VERSION_RECORDS[name] === undefined || VERSION_RECORDS[name].length == 0);
+
             for(var i = 0; i < tableFields.length; i++){
                 var field = tableFields[i];
                 var omitField = false;
@@ -263,7 +273,7 @@
                 var pattern = Packages.java.util.regex.Pattern.compile("<" + field.name + ">(<\\!\\[CDATA\\[)?([\\s\\S]*?)(\\]\\]>)?<\\/" + field.name + ">");
                 var currentScriptVersion = parsePayload(payload, pattern);
 
-                if(currentScriptVersion !== undefined && currentScriptVersion.sanitizedValue !== field.defaultValue) {
+                if(currentScriptVersion !== undefined && currentScriptVersion.sanitizedValue !== field.defaultValue.sanitizedValue) {
 
                     if(RESULTS.tables[tableName].f[field.name] === undefined){
                         RESULTS.tables[tableName].f[field.name] = {
@@ -296,32 +306,31 @@
                     }
 
                     //
-                    // Loop through version records and check if the field value has changed
+                    // If this is the first version of the file, we need to ensure this field is flagged as changed and the lines of code are counted
+                    // This is important because if the file is updated again and that update occured within the same date range we're looking at and those edits didn't change the script field, we could miss it
                     //
-                    if(VERSION_RECORDS[name] !== undefined && VERSION_RECORDS[name].length > 0) {
-                        var currentVersion = currentScriptVersion;
-
-                        for(var j = 0; j < VERSION_RECORDS[name].length; j++){
-                            var previousScriptVersion = parsePayload(VERSION_RECORDS[name][j], pattern);
-
-                            if(previousScriptVersion !== undefined && previousScriptVersion.sanitizedValue !== currentVersion.sanitizedValue){
-                                
-                                // Calculate the difference in lines of code
-                                var linesChanged = Math.abs(currentVersion.linesOfCode - previousScriptVersion.linesOfCode);
-
-                                // If the lines of code are the same, add at least 1 as something has changed to get this far
-                                linesOfCodeChanged += (linesChanged > 0 ? linesChanged : 1);
-
-                                // Make sure to mark this as changed
-                                scriptFieldChanged = true;
-                                
-                                currentVersion = previousScriptVersion;                                
-                            }
-                        }
-                    } else {
-                        // If no version records exists, this is most likely the first version of the record
+                    if(isInitialVersion) {
                         scriptFieldChanged = true;
-                        linesOfCodeChanged = currentScriptVersion.linesOfCode;
+                        linesOfCodeChanged = Math.abs(currentScriptVersion.linesOfCode - field.defaultValue.linesOfCode);
+
+                    } else if(VERSION_RECORDS[name] !== undefined && VERSION_RECORDS[name].length > 0) {
+                        //
+                        // Compare the current version of the script field with the oldest version we found in version history that falls in the date range we're looking at
+                        //
+                        var oldestVersionIndex = VERSION_RECORDS[name].length - 1;
+                        var oldestScriptVersion = parsePayload(VERSION_RECORDS[name][oldestVersionIndex], pattern);
+
+                        if(oldestScriptVersion !== undefined && oldestScriptVersion.sanitizedValue !== currentScriptVersion.sanitizedValue){
+                                
+                            // Calculate the difference in lines of code
+                            var linesChanged = Math.abs(currentScriptVersion.linesOfCode - oldestScriptVersion.linesOfCode);
+
+                            // If the lines of code are the same, add at least 1 as something has changed to get this far
+                            linesOfCodeChanged += (linesChanged > 0 ? linesChanged : 1);
+
+                            // Make sure to mark this as changed
+                            scriptFieldChanged = true;                            
+                        }
                     }
 
                     // If we detect a script field change, flag it so we count the file as modified
