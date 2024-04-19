@@ -60,10 +60,7 @@
                 name: gr.getValue("element"),
                 tableName: tableName,
                 internalType: gr.getValue("internal_type"),
-                defaultValue: {
-                    sanitizedValue: (gr.getValue("default_value") || "").replace(/\s+/g, ""),
-                    linesOfCode: (gr.getValue("default_value") || "").split(/\r?\n/).length
-                }
+                defaultValue: (gr.getValue("default_value") || "").replace(/\s+/g, "")
             });
         }
 
@@ -273,7 +270,7 @@
                 var pattern = Packages.java.util.regex.Pattern.compile("<" + field.name + ">(<\\!\\[CDATA\\[)?([\\s\\S]*?)(\\]\\]>)?<\\/" + field.name + ">");
                 var currentScriptVersion = parsePayload(payload, pattern);
 
-                if(currentScriptVersion !== undefined && currentScriptVersion.sanitizedValue !== field.defaultValue.sanitizedValue) {
+                if(currentScriptVersion !== undefined && currentScriptVersion.sanitizedValue !== field.defaultValue) {
 
                     if(RESULTS.tables[tableName].f[field.name] === undefined){
                         RESULTS.tables[tableName].f[field.name] = {
@@ -311,7 +308,7 @@
                     //
                     if(isInitialVersion) {
                         scriptFieldChanged = true;
-                        linesOfCodeChanged = Math.abs(currentScriptVersion.linesOfCode - field.defaultValue.linesOfCode);
+                        linesOfCodeChanged = currentScriptVersion.linesOfCode;
 
                     } else if(VERSION_RECORDS[name] !== undefined && VERSION_RECORDS[name].length > 0) {
                         //
