@@ -7,11 +7,11 @@ const moment = require("moment");
 var process = () => {
     var promise = new Promise((resolve, reject) => {
 
-        var fileName = path.join(__dirname, "results.csv");   
+        var fileName = path.join(__dirname, "results-2022.csv");   
 
         FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
 
-            var wb = new Audit.AuditWorkbook("code-usage-results2.xlsx");
+            var wb = new Audit.AuditWorkbook("code-usage-results-2022.xlsx");
 
             //
             // Code usage summary
