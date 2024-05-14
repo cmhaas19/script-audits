@@ -4,6 +4,7 @@ const EMPTY_PAYLOAD = "Empty Payload";
 const AUDIT_STATE_COMPLETED = "Completed";
 const AUDIT_STATE_FAILED = "Failed";
 const CUSTOMER_ACCOUNTS_FILENAME = "files/all-customer-accounts.csv";
+const CUSTOMER_ACV_FILENAME = "files/all-customer-accounts-acv.csv";
 const APP_ENGINE_ACCOUNTS_FILENAME = "files/app-engine-accounts.csv";
 const CUSTOMER_INSTANCES_FILENAME = "files/customer-instances.csv";
 
@@ -42,6 +43,43 @@ var loadAccountData = () => {
 		var accounts = {};
         var fileName = path.join(__dirname, CUSTOMER_ACCOUNTS_FILENAME);
 
+        
+
+		fastCsv.parseFile(fileName)
+			.on("data", data => {
+				var accountNo = data[0];
+
+				accounts[accountNo] = {
+					accountName: data[1],
+                    accountNo: accountNo,
+                    primarySalesRep: data[3],
+                    solutionConsultant: data[4],
+                    city: "",
+                    country: "",
+                    totalACV: 0,
+                    accountType: data[2],
+                    isAppEngineSubscriber: false
+				};
+
+			})
+			.on("end", rowCount => {
+                console.log("Loaded " + Object.keys(accounts).length + " total accounts.");
+
+                loadAccountAcv(accounts)
+                    .then((a) => loadAppEngineAccounts(a))
+                    .then((a) => resolve(a));
+			});
+	});
+
+	return promise;
+};
+
+
+var loadAccountAcv = (accounts) => {
+	var promise = new Promise((resolve, reject) => {
+        var fileName = path.join(__dirname, CUSTOMER_ACV_FILENAME);
+        var acvAccounts = 0;
+
         var parseACV = function(text) {
             if(text.trim().length == 0)
                 return 0;
@@ -56,27 +94,20 @@ var loadAccountData = () => {
 
 		fastCsv.parseFile(fileName)
 			.on("data", data => {
-				var accountNo = data[0];
+				var accountNo = data[0],
+                    account = accounts[accountNo];
 
-				accounts[accountNo] = {
-					accountName: data[1],
-                    accountNo: accountNo,
-                    primarySalesRep: data[3],
-                    solutionConsultant: data[4],
-                    city: "",
-                    country: "",
-                    totalACV: parseACV(data[5]),
-                    accountType: data[2],
-                    isAppEngineSubscriber: false
-				};
-
+                if(account) {
+                    var acv = parseACV(data[2]);
+                    account.totalACV = (acv > 0 ? acv : 0);
+                    acvAccounts++;
+                } else {
+                    console.log("Could not find ACV account " + accountNo);
+                }
 			})
 			.on("end", rowCount => {
-                console.log("Loaded " + Object.keys(accounts).length + " total accounts.");
-
-                loadAppEngineAccounts(accounts).then((a) => {
-                    resolve(a);
-                });
+				console.log("Found " + acvAccounts + " ACV Accounts.");
+				resolve(accounts);
 			});
 	});
 

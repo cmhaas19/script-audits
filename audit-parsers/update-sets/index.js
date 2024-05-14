@@ -15,16 +15,21 @@ const moment = require("moment");
 
         ws.setStandardColumns([
             { header: 'Month', width: 20 },
+            { header: 'Year', width: 20 },
             { header: 'Total', width: 20, alignment: { horizontal: 'right' } }
         ]);
 
         auditData.forEach((row) => {
-            if(row.data) {
-                for(var month in row.data) {
-                    ws.addStandardRow(row.instanceName, row.instance, {
-                        month: moment(month, 'MM/YYYY').format("YYYY-MM"),
-                        count: row.data[month]
-                    });
+
+            if(row.instance.purpose == 'Production') {
+                if(row.data) {
+                    for(var month in row.data) {
+                        ws.addStandardRow(row.instanceName, row.instance, {
+                            month: moment(month, 'MM/YYYY').format("YYYY-MM"),
+                            year: moment(month, 'MM/YYYY').format("YYYY"),
+                            count: row.data[month]
+                        });
+                    }
                 }
             }
         });

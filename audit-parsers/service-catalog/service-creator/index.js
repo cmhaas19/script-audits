@@ -12,6 +12,7 @@ var process = () => {
         FileLoader.loadFileWithInstancesAndAccounts(fileName).then((auditData) => {
 
             var wb = new Audit.AuditWorkbook("service-creator-usage.xlsx");
+            
 
             //
             // Services by month
@@ -21,6 +22,7 @@ var process = () => {
 
                 ws.setStandardColumns([
                     { header: 'Created Month', width: 25 },
+                    { header: 'Created Year', width: 25 },
                     { header: 'Count', width: 25 }
                 ]);
                 
@@ -31,6 +33,7 @@ var process = () => {
                         for(var month in row.data.services) { 
                             var result = {
                                 month: moment(month, 'MM/YYYY').format("YYYY-MM"),
+                                year: moment(month, 'MM/YYYY').format("YYYY"),
                                 countOfServices: row.data.services[month]
                             };
 
@@ -120,6 +123,27 @@ var process = () => {
                 console.log(approvalKeys);
 
             })();
+
+            //
+            // Errors
+            //
+            (function(){
+                var wsErrors = wb.addWorksheet('Errors');
+
+                wsErrors.setStandardColumns([
+                    { header: 'Error Description', width: 42 }
+                ]);
+
+                auditData.forEach((row) => {
+
+                    if(!row.success) {
+                        wsErrors.addStandardRow(row.instanceName, row.instance, {
+                            errorDescription: row.errorDescription
+                        });
+                    }
+                });
+            })();
+
             
             wb.commit().then(() => {
                 resolve();
