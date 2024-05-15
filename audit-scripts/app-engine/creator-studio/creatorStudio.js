@@ -142,7 +142,6 @@ var getApplicationUsage = function() {
 
 var getInstallationDetails = function() {    
     var gr = new GlideRecord("sys_store_app");
-    gr.setWorkflow(false);
     gr.addQuery("scope=" + CONSTANTS.CREATOR_STUDIO_SCOPE);
     gr.query();
 
@@ -218,7 +217,7 @@ var getAppCounts = function() {
         var gr = new GlideRecord("sn_creatorstudio_request_app_config");
 
         if(!gr.isValid())
-            return apps;
+            return scopes;
 
         gr.setWorkflow(false);
         gr.query();
@@ -281,6 +280,51 @@ var getAppCounts = function() {
     return results;
 };
 
+var getPipelineStats = function() {
+    var pipelines = {
+        installed: false,
+        totalPipelines: 0,
+        totalEnvironments: 0
+    };
+
+    (function(){
+        var gr = new GlideRecord("sys_store_app");
+        gr.addQuery("scope=sn_deploy_pipeline");
+        gr.query();
+
+        pipelines.installed = gr.next();
+    })();
+
+    (function(){
+        var gr = new GlideAggregate("sn_pipeline_pipeline");
+
+        if(!gr.isValid()) 
+            return;
+
+        gr.setWorkflow(false);
+        gr.addAggregate("COUNT");
+        gr.query();
+
+        pipelines.totalPipelines = (gr.next() ? parseInt(gr.getAggregate("COUNT")) : 0);
+
+    })();
+
+    (function(){
+        var gr = new GlideAggregate("sn_pipeline_pipeline_environment_order");
+
+        if(!gr.isValid())
+            return;
+            
+        gr.setWorkflow(false);
+        gr.addAggregate("COUNT");
+        gr.query();
+
+        pipelines.totalEnvironments = (gr.next() ? parseInt(gr.getAggregate("COUNT")) : 0);
+    })();
+    
+    return pipelines;
+};
+
 (function(){
 
     setSessionLanguage();
@@ -291,6 +335,7 @@ var getAppCounts = function() {
         systemPropertySettings: getSystemPropertySettings(),
         guidedSetupStatus: getGuidedSetupStatus(),
         userRoleCounts: getCreatorStudioUserCounts(),
+        pipelineStats: getPipelineStats(),
         appCounts: getAppCounts()
     };
 

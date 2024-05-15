@@ -1,0 +1,50 @@
+[
+    {
+       "scope":"x_snc_240513_app_b",
+       "type":"Creator Studio Automation",
+       "trigger":{
+          "type":"Record Create"
+       }
+    },
+    {
+       "scope":"x_snc_240513_app_a",
+       "type":"Creator Studio Automation",
+       "trigger":{
+          "type":"Record Update",
+          "v":{
+             "Condition":"active=true^assigned_to=62826bf03710200044e0bfc8bcbe5df1"
+          }
+       },
+       "activities":[
+          {
+             "nm":"Request approval",
+             "o":"1"
+          },
+          {
+             "nm":"Assign to",
+             "o":"2",
+             "c":"activity_6c35c3806c3506906c3517206c352f20.outputs.state=approved"
+          }
+       ]
+    },
+    {
+       "scope":"x_snc_240513_app_a",
+       "type":"Creator Studio Automation",
+       "trigger":{
+          "type":"Record Create"
+       },
+       "activities":[
+          {
+             "nm":"Request approval",
+             "o":"1"
+          }
+       ]
+    },
+    {
+       "scope":"x_snc_240510_app_a",
+       "type":"Creator Studio Automation",
+       "trigger":{
+          "type":"Record Create"
+       }
+    }
+ ]

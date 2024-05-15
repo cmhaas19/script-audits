@@ -1,189 +1,92 @@
 
-var getProcessData = function(){
-
-}
-
-var getCreatorStudioApps = function(range) {
-    var apps = {};
+var getCreatorStudioForms = function() {    
     var scopes = {};
+    var results = {
+        templates: {},
+        fieldTypes: {}
+    };
 
-    //
+    ///
     // Get the request apps and associated scopes
     //
     (function(){
         var gr = new GlideRecord("sn_creatorstudio_request_app_config");
+
+        if(!gr.isValid())
+            return;
+        
         gr.setWorkflow(false);
-        gr.chooseWindow(range.start, range.end);
+        gr.orderBy("sys_scope");
         gr.query();
 
         while(gr.next()) {
-            var scope = gr.sys_scope.scope.toString();
-
-            apps[scope] = {
-                table: gr.getValue("request_table"),
-                created: new GlideDateTime(gr.getValue("sys_created_on")).getDate().getValue(),
-                color: gr.getValue("color"),
-                icon: gr.getValue("icon")
-            };
+            scopes[gr.sys_scope.scope.toString()] = true;
         }
 
     })();
 
+    if(Object.keys(scopes).length == 0)
+        return;
+
     //
-    // Count the # of record producers (forms) in each app scope
+    // Get forms grouped by template used
     //
     (function(){
         var gr = new GlideAggregate("sc_cat_item_producer");
         gr.setWorkflow(false);
-        gr.addEncodedQuery("published_refISEMPTY^sys_scope.scopeIN" + Object.keys(apps).join());
-        gr.groupBy("sys_scope");
-        gr.groupBy("active");
+        gr.addEncodedQuery("published_refISEMPTY^sys_scope.scopeIN" + Object.keys(scopes).join());
+        gr.groupBy("sc_template");
         gr.addAggregate("COUNT");
         gr.query();
 
         while(gr.next()) {
-            var scope = gr.sys_scope.scope.toString();
-            var active = (gr.active.toString() == "true");
-            var app = apps[scope];
-            var count = parseInt(gr.getAggregate("COUNT"));
-
-            if(app.forms == undefined)
-                app.forms = {};
-
-            if(active) {
-                app.forms.active = count;
-            } else {
-                app.forms.inactive = count;
-            }
+            var template = (gr.sc_template.nil() ? "(empty)" : gr.sc_template.getDisplayValue());
+            
+            results.templates[template] = parseInt(gr.getAggregate("COUNT"));
         }
 
     })();
 
     //
-    // Get the automation details
+    // Get form field types used
     //
     (function(){
-        var pids = {};
-        var tids = {};
+        var gr = new GlideAggregate("item_option_new");
+        gr.setWorkflow(false);
+        gr.addEncodedQuery("cat_item.sys_class_name=sc_cat_item_producer^cat_item.published_refISEMPTY^sys_scope.scopeIN" + Object.keys(scopes).join());
+        gr.groupBy("cat_item");
+        gr.groupBy("type");
+        gr.addAggregate("COUNT");
+        gr.query();
 
-        //
-        // Get the processes & ids
-        //
-        (function(){
-            var gr = new GlideRecord("sys_pd_process_definition");
-            gr.setWorkflow(false);
-            gr.addQuery("sys_scope.scope", "IN", Object.keys(apps));
-            gr.query();
+        while(gr.next()){
+            var questionClass = gr.type.getDisplayValue(),
+                count = parseInt(gr.getAggregate("COUNT"));
 
-            while(gr.next()) {
-                var scope = gr.sys_scope.scope.toString();
-                var pid = gr.getUniqueValue();
-                var app = apps[scope];
+            if(results.fieldTypes[questionClass] == undefined)
+                results.fieldTypes[questionClass] = { forms: 0, total: 0 };
 
-                pids[pid] = true;
-
-                if(app.processes == undefined)
-                    app.processes = {};
-
-                app.processes[pid] = {
-                    type: gr.process_type.getDisplayValue()
-                };
-            }
-
-        })();
-
-        //
-        // With the ids, get the trigger details
-        //
-        (function(){
-            var gr = new GlideRecord("sys_pd_trigger_instance");
-            gr.addEncodedQuery("process_definitionIN" + Object.keys(pids).join());
-            gr.setWorkflow(false);
-            gr.query();
-    
-            while(gr.next()) {
-                var pid = gr.process_definition.toString();
-                var tid = gr.getUniqueValue();
-
-                tids[tid] = true;
-
-                for(var scope in apps) {
-                    if(apps[scope].processes != undefined && apps[scope].processes[pid] != undefined) {
-                        apps[scope].processes[pid].trigger = { 
-                            id: tid,
-                            type: gr.trigger_type.getDisplayValue(),
-                            variables: {}
-                        };
-                    }
-                }			
-            }
-        })();
-
-        //
-        // With the trigger details, get the variables
-        //
-        (function(){
-            var gr = new GlideRecord("sys_variable_value");
-            gr.addEncodedQuery("document=sys_pd_trigger_instance^document_keyIN" + Object.keys(tids).join());
-            gr.setWorkflow(false);
-            gr.query();
-    
-            while(gr.next()) {
-                var tid = gr.document_key.toString();
-
-                for(var scope in apps) {
-                    if(apps[scope].processes != undefined) {
-                        for(var pid in apps[scope].processes) {
-                            var process = apps[scope].processes[pid];
-
-                            if(process.trigger != undefined && process.trigger.id == tid) {
-                                process.trigger.variables[gr.variable.getDisplayValue()] = gr.value.toString();
-                            }
-                        }
-                    }
-                }			
-            }
-        })();
-
-        //
-        // Now get the activities (in order)
-        //
-
-
-        //
-        // Transform the result to reduce the payload
-        //
-        
+            results.fieldTypes[questionClass].forms++;
+            results.fieldTypes[questionClass].total += count;
+        }
 
     })();
-
-    return apps;
     
-
-    // Get request app configs
-    // For each request app,
-    // Count the # of forms
-    //    Count the # of records created for each form
-    //    Count the # of field types
-    // Count the # of automations
-    //    Count the # of automation executions for each automation
-    // Count the # of users assigned the role
-
+    return results;
 };
 
-
+var setSessionLanguage = function() {
+    try {
+        gs.getSession().setLanguage("en");
+    } catch(e) { }
+};
 
 (function() {
 
-    var ranges = {
-        r1: { start: 0, end: 549 },
-        r2: { start: 550, end: 1099 },
-        r3: { start: 1100, end: 1649 },
-        r4: { start: 1650, end: 2199 },
-    };
+    setSessionLanguage();
 
-    var apps = getCreatorStudioApps(ranges.r1);
+    var results = getCreatorStudioForms();
 
-    gs.print(JSON.stringify(apps));
+    gs.print(JSON.stringify(results));
 
 })();

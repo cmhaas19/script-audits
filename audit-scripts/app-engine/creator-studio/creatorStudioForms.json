@@ -1,0 +1,23 @@
+{
+    "templates":{
+       "Creator Studio Default Template":4
+    },
+    "fieldTypes":{
+       "Date/Time":{
+          "forms":1,
+          "total":1
+       },
+       "Multiple Choice":{
+          "forms":1,
+          "total":1
+       },
+       "Single Line Text":{
+          "forms":4,
+          "total":12
+       },
+       "CheckBox":{
+          "forms":2,
+          "total":2
+       }
+    }
+ }
