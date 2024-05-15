@@ -27,6 +27,8 @@ var loadAllFiles = (instances) => {
         
         parseCsvFile("creatorStudio", auditData)            
             .then((auditData) => parseCsvFile("creatorStudioApps", auditData))
+            .then((auditData) => parseCsvFile("creatorStudioProcesses", auditData))
+            .then((auditData) => parseCsvFile("creatorStudioForms", auditData))
             .then((auditData) => {
                 var combined = {};
                 var missingAccountInfo = 0;

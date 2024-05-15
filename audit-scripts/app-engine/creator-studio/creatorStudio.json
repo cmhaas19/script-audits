@@ -1,0 +1,68 @@
+{
+    "installationDetails":{
+       "installed":true,
+       "installedOn":"2024-05-10",
+       "version":"25.1.2"
+    },
+    "applicationUsage":{
+       "Creator Studio":{
+          "2024-05":1
+       }
+    },
+    "systemPropertySettings":{
+       "glide.ui.sn_creatorstudio_new_application_task_activity.fields":"assigned_to,cmdb_ci,state,impact,priority,opened_by,work_notes,comments,*Attachments*,close_notes"
+    },
+    "guidedSetupStatus":{
+       "name":"Welcome to App Engine Guided Setup​",
+       "status":"In progress",
+       "progress":"0",
+       "steps":[
+          {
+             "name":"Set up user access ",
+             "status":"Not started",
+             "progress":"0",
+             "steps":[
+                {
+                   "name":"Set up collaboration descriptors to manage your user's capabilities",
+                   "status":"Not started",
+                   "progress":"0"
+                },
+                {
+                   "name":"Set up the admin group",
+                   "status":"Not started",
+                   "progress":"0"
+                }
+             ]
+          },
+          {
+             "name":"Set up access to Creator Studio",
+             "status":"In progress",
+             "progress":"0",
+             "steps":[
+                {
+                   "name":"Grant Creator Studio Restricted access to users",
+                   "status":"In progress",
+                   "progress":"0"
+                },
+                {
+                   "name":"Grant full Creator Studio access to users",
+                   "status":"In progress",
+                   "progress":"0"
+                }
+             ]
+          }
+       ]
+    },
+    "userRoleCounts":{
+       "sn_creatorstudio.basic_fulfiller":1,
+       "sn_creatorstudio.basic_read":1,
+       "sn_creatorstudio.user":1
+    },
+    "appCounts":{
+       "totalApps":3,
+       "totalForms":4,
+       "totalProcesses":4,
+       "totalRecords":1,
+       "totalFulfillers":1
+    }
+ }
