@@ -3,10 +3,8 @@ const Audit = require('../common/AuditWorkbook.js');
 const FileLoader = require('../common/FileLoader.js');
 const moment = require('moment');
 const fs = require('fs');
+const { v1: uuidv1, v4: uuidv4 } = require('uuid');
 
-const CREATOR_STUDIO_VERSIONS = {
-    "25.1.2": 2512
-};
 
 var parseCsvFile = (propertyName, auditData) => {
     var promise = new Promise((resolve, reject) => { 
@@ -84,7 +82,6 @@ var loadAllFiles = (instances) => {
 	return promise;
 };
 
-
 var writeGeneralWorksheet = (workbook, auditData) => {
 
     var worksheet = workbook.addWorksheet("General");
@@ -99,7 +96,10 @@ var writeGeneralWorksheet = (workbook, auditData) => {
         { header: 'Total Forms', width: 20 },
         { header: 'Total Processes', width: 20 },
         { header: 'Total Records', width: 20 },
-        { header: 'Total Fulfillers', width: 20 }
+        { header: 'Total Fulfillers', width: 20 },
+        { header: 'Pipeline Installed', width: 20 },
+        { header: 'Pipelines - Total', width: 20 },
+        { header: 'Pipelines - Total Environments', width: 20 }
     ]);
 
     for(var instanceName in auditData){
@@ -109,6 +109,7 @@ var writeGeneralWorksheet = (workbook, auditData) => {
             instance.creatorStudio.forEach(row => {
 
                 if(row.data) {
+
                     var result = {
                         installed: row.data.installationDetails.installed,
                         installedOn: row.data.installationDetails.installedOn,
@@ -120,7 +121,10 @@ var writeGeneralWorksheet = (workbook, auditData) => {
                         totalForms: row.data.appCounts.totalForms,
                         totalProcesses: row.data.appCounts.totalProcesses,
                         totalRecords: row.data.appCounts.totalRecords,
-                        totalFulfillers: row.data.appCounts.totalFulfillers
+                        totalFulfillers: row.data.appCounts.totalFulfillers,
+                        pipelineInstalled: row.data.pipelineStats.installed,
+                        pipelineCount: row.data.pipelineStats.totalPipelines,
+                        environmentCount: row.data.pipelineStats.totalEnvironments,
                     };
 
                     if(row.data.installationDetails.installed && row.data.installationDetails.installedOn)
@@ -387,6 +391,117 @@ var writeAppsWorksheets = (workbook, auditData) => {
     }
 };
 
+var writeFormsWorksheets = (workbook, auditData) => {
+    var wsTemplates = workbook.addWorksheet('Form Templates');
+    var wsFieldTypes = workbook.addWorksheet('Form Field Types');
+	
+    wsTemplates.setStandardColumns([
+        { header: 'Template Name', width: 20 },
+        { header: 'No. of Forms', width: 20 }
+    ]);
+
+    wsFieldTypes.setStandardColumns([
+        { header: 'Field Type', width: 20 },
+        { header: 'No. of Forms Using', width: 20 },
+        { header: 'No. of Instances Used', width: 20 }
+    ]);
+
+    for(var instanceName in auditData){
+        var instance = auditData[instanceName];
+
+        if(instance.creatorStudioForms) {
+            instance.creatorStudioForms.forEach(row => {
+                if(row.data && row.data.templates) {
+                    for(var templateName in row.data.templates){
+                        var templateCount = row.data.templates[templateName];
+
+                        wsTemplates.addStandardRow(instanceName, instance, {
+                            templateName,
+                            templateCount
+                        });
+                    }
+                }
+
+                if(row.data && row.data.fieldTypes) {
+                    for(var fieldTypeName in row.data.fieldTypes){
+                        var formCount = row.data.fieldTypes[fieldTypeName].forms;
+                        var instanceCount = row.data.fieldTypes[fieldTypeName].total;
+
+                        wsFieldTypes.addStandardRow(instanceName, instance, {
+                            fieldTypeName,
+                            formCount,
+                            instanceCount
+                        });
+                    }
+                }
+            });
+        }
+    }
+};
+
+var writeProcessesWorksheets = (workbook, auditData) => {
+    var wsProcesses = workbook.addWorksheet('Processes');
+    var wsActivities = workbook.addWorksheet('Process Activities');
+	
+    wsProcesses.setStandardColumns([
+        { header: 'Process ID', width: 20 },
+        { header: 'App Scope', width: 20 },
+        { header: 'Process Type', width: 20 },
+        { header: 'Trigger Type', width: 20 },
+        { header: 'Trigger Condition', width: 20 }
+    ]);
+
+    wsActivities.setStandardColumns([
+        { header: 'Process ID', width: 20 },
+        { header: 'App Scope', width: 20 },
+        { header: 'Process Type', width: 20 },
+        { header: 'Activity Name', width: 20 },
+        { header: 'Activity Order', width: 20 },
+        { header: 'Activity Condition', width: 20 }
+    ]);
+
+    for(var instanceName in auditData){
+        var instance = auditData[instanceName];
+
+        if(instance.creatorStudioProcesses) {
+            instance.creatorStudioProcesses.forEach(row => {
+                if(row.data) {
+                    row.data.forEach((process) => {
+                        var p = {
+                            id: uuidv4(),
+                            scope: process.scope,
+                            processType: process.type,
+                            triggerType: process.trigger.type,
+                            triggerCondition: ""
+                        };
+
+                        if(process.trigger.v && process.trigger.v.Condition) {
+                            p.triggerCondition = process.trigger.v.Condition;
+                        }
+
+                        wsProcesses.addStandardRow(instanceName, instance, p);
+
+                        if(process.activities && process.activities.length){
+                            process.activities.forEach((activity) => {
+                                var a = {
+                                    id: p.id,
+                                    scope: process.scope,
+                                    processType: process.type,
+                                    activityName: activity.nm,
+                                    activityOrder: parseInt(activity.o),
+                                    condition: activity.c
+                                };
+
+                                wsActivities.addStandardRow(instanceName, instance, a);
+                            });
+                        }
+                    });                    
+                }
+            });
+        }
+    }
+};
+
 var writeErrorsWorksheets = (workbook, auditData) => {
     var worksheet = workbook.addWorksheet('Errors');
 
@@ -443,6 +558,12 @@ var writeErrorsWorksheets = (workbook, auditData) => {
 
             writeAppsWorksheets(workbook, auditData);
             console.log("Created Apps Worksheet");
+
+            writeFormsWorksheets(workbook, auditData);
+            console.log("Created Forms Worksheet");
+
+            writeProcessesWorksheets(workbook, auditData);
+            console.log("Created Processes Worksheet");
 
             writeErrorsWorksheets(workbook, auditData);
             console.log("Created Errors Worksheet");

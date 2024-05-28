@@ -4,6 +4,11 @@
 aes.json
 creator-studio.json
 
+# Ignore all .csv files except for the ones under audit-parsers/common/files
+*.csv
+!audit-parsers/common/files/*.csv
+
+
 # Logs
 logs
 *.log
@@ -108,3 +113,4 @@ dist
 
 # TernJS port file
 .tern-port
+
