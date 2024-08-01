@@ -471,11 +471,15 @@ var writeProcessesWorksheets = (workbook, auditData) => {
                             id: uuidv4(),
                             scope: process.scope,
                             processType: process.type,
-                            triggerType: process.trigger.type,
+                            // triggerType: process.trigger.type,
                             triggerCondition: ""
                         };
 
-                        if(process.trigger.v && process.trigger.v.Condition) {
+                        if(process.trigger && process.trigger.type) {
+                            p.triggerType = process.trigger.type;
+                        }
+
+                        if(process.trigger && process.trigger.v && process.trigger.v.Condition) {
                             p.triggerCondition = process.trigger.v.Condition;
                         }
 
