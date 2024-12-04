@@ -162,7 +162,7 @@ var loadCustomApps = (aesAppIds) => {
                                     scopeMatchesPrefix: true,
                                     isSysApp: (className == "sys_app"),
                                     isSysStoreApp: (className == "sys_store_app"),
-                                    isAESApp: (aesAppIds[id] != undefined),
+                                    isAESApp: false,
                                     isProduction: (row.instance.purpose == "Production"),
                                     isGlobal: (app.s == "global"),
                                     isPDI: false
@@ -180,10 +180,10 @@ var loadCustomApps = (aesAppIds) => {
                                 if(customApp.scope.length > 0 && customApp.scope.startsWith("x_"))
                                     customApp.scopePrefix = customApp.scope.substring(0, customApp.scope.indexOf("_", 2)) + "_";
 
-                                if(customApp.isAESApp && customApp.ide.length == 0)
-                                    customApp.ide = "AES*";
+                                if(customApp.ide.length == 0 && aesAppIds[id] != undefined)
+                                    customApp.ide = "AES*";                                  
 
-                                if(!customApp.isAESApp && customApp.ide == "AES")
+                                if(customApp.ide == "AES" || customApp.ide == "AES*")
                                     customApp.isAESApp = true;
 
                                 if(customApp.scope.startsWith("x_")) {                                    

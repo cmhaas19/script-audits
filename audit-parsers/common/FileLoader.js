@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const fastCsv = require("fast-csv");
 const EMPTY_PAYLOAD = "Empty Payload";
@@ -185,7 +186,7 @@ var loadFileWithInstancesAndAccounts = function(fileName) {
                 //
                 // Load actual audit
                 //
-                parseCsvFile(fileName).then((auditData) => {
+                parseFile(fileName).then((auditData) => {
                     //
                     // Add instance/account info to each row
                     //
@@ -226,73 +227,133 @@ var loadFileWithInstancesAndAccounts = function(fileName) {
 	return promise;
 };
 
-var parseCsvFile = (fileName) => {
+var parseFile = (fileName) => {
 
-    var auditData = [];
-
-    var parsePayload = function(payload) {
-        var response = {
-            success: false
+    const parsePayload = (payload) => {
+        const response = {
+            success: false,
+            errorMessage: EMPTY_PAYLOAD
         };
 
-		if(payload && payload.length && payload != EMPTY_PAYLOAD) {
-            var index = payload.lastIndexOf("*** Script:");
+        if (payload && payload.length && payload !== EMPTY_PAYLOAD) {
+            const index = payload.lastIndexOf("*** Script:");
 
-            if(index != -1) {
-                var jsonString = payload.substring(index + 12);
+            if (index !== -1) {
+                const jsonString = payload.substring(index + 12);
 
-                try { 
+                try {
                     response.data = JSON.parse(jsonString);
                     response.success = true;
-                } catch(e) {  
+                    response.errorMessage = "";
+                } catch (e) {
                     response.errorMessage = e.message;
                 }
-            } else {
-                response.errorMessage = EMPTY_PAYLOAD;
             }
-            
-		} else {
-            response.errorMessage = EMPTY_PAYLOAD;
         }
 
         return response;
-	};
+    };
 
-	var promise = new Promise((resolve, reject) => {
-        console.log(`Starting to process file ${fileName}`);
+    var parseJsonFile = (fileName) => {
+        return new Promise((resolve, reject) => {
+            console.log(`Starting to process file ${fileName}`);
 
-		fastCsv.parseFile(fileName).on("data", data => {
-			var row = {
-				instanceName: data[2],
-				auditState: data[0],
-				errorDescription: data[1],
-				success: (data[0] == AUDIT_STATE_COMPLETED)
-			};
+            var data = fs.readFileSync(fileName, 'utf8');
+            var jsonData = "";
 
-            if(row.auditState == AUDIT_STATE_FAILED) {
-                row.errorDescription = data[1];
-            } else {
-                var response = parsePayload(data[3]);
-
-                if(response.success) {
-                    row.data = response.data;
-                    row.success = true;
-                } else {
-                    row.success = false;
-                    row.errorDescription = response.errorMessage;
-                }
+            if(data && data.length) {
+                jsonData = JSON.parse(data);
             }
 
-            auditData.push(row);
+            if(jsonData && jsonData.records) {
+                jsonData.records.forEach((record) => {
+                    var row = {
+                        instanceName: record.u_instance_name,
+                        auditState: record.u_audit_state,
+                        errorDescription: record.u_error_description,
+                        success: (record.u_audit_state == AUDIT_STATE_COMPLETED)
+                    };
 
-		})
-		.on("end", rowCount => {
-            console.log(`Parsed ${auditData.length} rows from ${fileName}`);
+                    if (row.auditState == AUDIT_STATE_FAILED) {
+                        row.errorDescription = record.u_error_description;
+                    } else {
+                        var response = parsePayload(record.u_audit_payload);
+    
+                        if (response.success) {
+                            row.data = response.data;
+                            row.success = true;
+                        } else {
+                            row.success = false;
+                            row.errorDescription = response.errorMessage;
+                        }
+                    }
+    
+                    auditData.push(row);
+                });
+            }
+
             resolve(auditData);
         });
-	});
+    };
 
-	return promise;
+    var parseCsvFile = (fileName) => {
+        return new Promise((resolve, reject) => {
+            console.log(`Starting to process file ${fileName}`);
+    
+            fastCsv.parseFile(fileName)
+                .on("data", data => {
+                    var row = {
+                        instanceName: data[2],
+                        auditState: data[0],
+                        errorDescription: data[1],
+                        success: (data[0] == AUDIT_STATE_COMPLETED)
+                    };
+    
+                    if (row.auditState == AUDIT_STATE_FAILED) {
+                        row.errorDescription = data[1];
+                    } else {
+                        var response = parsePayload(data[3]);
+    
+                        if (response.success) {
+                            row.data = response.data;
+                            row.success = true;
+                        } else {
+                            row.success = false;
+                            row.errorDescription = response.errorMessage;
+                        }
+                    }
+    
+                    auditData.push(row);
+                })
+                .on("end", () => {
+                    console.log(`Parsed ${auditData.length} rows from ${fileName}`);
+                    resolve(auditData);
+                })
+                .on("error", error => {
+                    console.error(`Error processing file ${fileName}: ${error.message}`);
+                    reject(error);
+                });
+        });
+    };
+
+    var auditData = [];
+
+    const fileExtension = path.extname(fileName).toLowerCase();
+
+    switch (fileExtension) {
+        case '.csv':
+            return parseCsvFile(fileName);
+            break;
+        case '.json':
+            return parseJsonFile(fileName);
+            break;
+        default:
+            throw new Error(`Unsupported file extension: ${fileExtension}`);
+    }
+};
+
+var parseCsvFile = (fileName) => {
+    return parseFile(fileName);
 };
 
 exports.parseCsvFile = parseCsvFile;

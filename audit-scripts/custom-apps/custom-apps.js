@@ -1,14 +1,4 @@
 (function() {
-    var RANGES = {
-        r1: { start: 0, end: 320 },
-        r2: { start: 321, end: 640 },
-        r3: { start: 641, end: 960 },
-        r4: { start: 961, end: 1280 },
-        r5: { start: 1281, end: 1600 },
-        r6: { start: 1601, end: 1920 },
-        r7: { start: 1921, end: 2240 }
-    };
-    var CURRENT_RANGE = RANGES.r1; // Update this in separate read audits
 
     var result = {
         code: gs.getProperty('glide.appcreator.company.code'),
@@ -54,7 +44,6 @@
         gr.setWorkflow(false);
         gr.addEncodedQuery("sys_class_name=sys_store_app^scopeSTARTSWITHx_^ORscope=global^ORscopeISEMPTY^NQsys_class_name=sys_app");
         gr.orderBy("sys_id");
-        gr.chooseWindow(CURRENT_RANGE.start, CURRENT_RANGE.end);
         gr.query();
 
         while(gr.next()) {
@@ -69,9 +58,20 @@
                 c: new GlideDateTime(gr.getValue("sys_created_on")).getDate().getByFormat("YYYY-MM")
             };
 
+            var ide = null;
+
             if(!gr.ide_created.nil()) {
-                apps[className][appId].i = gr.getValue("ide_created");
+                ide = gr.getValue("ide_created");
             }
+
+            if(ide == null && !gr.package_json.nil()) {
+                ide = "IDE";
+            }
+
+            if(ide != null) {
+                apps[className][appId].i = ide;
+            }
+
         }
 
     })(result.apps);
