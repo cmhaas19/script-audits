@@ -1,6 +1,7 @@
 # audits
 *.csv
 *.xlsx
+results.json
 aes.json
 creator-studio.json
 

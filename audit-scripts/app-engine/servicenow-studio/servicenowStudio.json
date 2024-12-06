@@ -1,0 +1,136 @@
+{
+  "installationDetails": {
+    "installed": true,
+    "installedOn": "2024-07-03",
+    "version": "26.2.4"
+  },
+  "applicationUsage": {
+    "App Engine Management Center": {
+      "2024-03": 1,
+      "2024-04": 1,
+      "2024-05": 1,
+      "2024-06": 1,
+      "2024-07": 1,
+      "2024-08": 1,
+      "2024-09": 1,
+      "2024-10": 1,
+      "2024-11": 2,
+      "2024-12": 1
+    },
+    "App Engine Studio": {
+      "2023-11": 3,
+      "2023-12": 1,
+      "2024-01": 1,
+      "2024-02": 1,
+      "2024-03": 1,
+      "2024-05": 1,
+      "2024-06": 1,
+      "2024-08": 1,
+      "2024-09": 3,
+      "2024-11": 3
+    },
+    "App Generation": { "2024-11": 1 },
+    "Creator Studio": {
+      "2024-06": 1,
+      "2024-09": 2,
+      "2024-11": 3,
+      "2024-12": 1
+    },
+    "Mobile App Builder": { "2024-11": 1 },
+    "PDF Extractor": { "2024-06": 1, "2024-07": 1 },
+    "ServiceNow Studio": { "2024-11": 3, "2024-12": 1 },
+    "Studio": { "2023-11": 1, "2024-01": 1 },
+    "Table Builder": { "2023-11": 2, "2024-03": 1, "2024-11": 1, "2024-12": 1 },
+    "UI Builder": { "2024-11": 1 },
+    "Workflow Studio": { "2024-11": 1, "2024-12": 1 },
+    "Workspace Builder for App Engine": {
+      "2023-11": 2,
+      "2024-08": 1,
+      "2024-11": 1
+    }
+  },
+  "systemPropertySettings": {},
+  "userRoleCounts": { "admin": 21, "delegated_developer": 18 },
+  "pipelineStats": {
+    "installed": true,
+    "totalPipelines": 4,
+    "totalEnvironments": 3
+  },
+  "appCounts": { "": 64, "AES": 48, "CS": 8, "DS": 1, "NA4A": 1, "SNS": 3 },
+  "userPreferences": {
+    "servicenow_studio.scope.based.tab.grouping.enabled": { "true": 2 }
+  },
+  "bookmarks": {
+    "sys_app": { "u": 1, "c": 1 },
+    "sys_db_object": { "u": 2, "c": 5 },
+    "sys_hub_flow": { "u": 1, "c": 2 },
+    "sys_report": { "u": 1, "c": 3 },
+    "sys_sg_form_screen": { "u": 1, "c": 4 }
+  },
+  "fileHistory": {
+    "11/2024": {
+      "pa_dashboards": { "u": 1, "c": 1 },
+      "sc_cat_item_producer": { "u": 1, "c": 1 },
+      "sn_ihub_integration_instance": { "u": 1, "c": 1 },
+      "sysevent_script_action": { "u": 1, "c": 1 },
+      "sys_app": { "u": 3, "c": 13 },
+      "sys_db_object": { "u": 1, "c": 11 },
+      "sys_decision": { "u": 1, "c": 1 },
+      "sys_hub_flow": { "u": 1, "c": 11 },
+      "sys_pd_process_definition": { "u": 1, "c": 1 },
+      "sys_script": { "u": 1, "c": 1 },
+      "sys_script_client": { "u": 1, "c": 1 },
+      "sys_script_include": { "u": 1, "c": 2 },
+      "sys_security_acl": { "u": 1, "c": 1 },
+      "sys_store_app": { "u": 1, "c": 5 },
+      "sys_ui_script": { "u": 1, "c": 1 },
+      "sys_ux_macroponent": { "u": 1, "c": 1 },
+      "sys_ux_page_registry": { "u": 1, "c": 8 }
+    },
+    "12/2024": {
+      "ais_datasource": { "u": 1, "c": 3 },
+      "ais_dictionary": { "u": 1, "c": 3 },
+      "ais_relevancy_solution_definition": { "u": 1, "c": 1 },
+      "ais_search_profile": { "u": 1, "c": 1 },
+      "ais_search_profile_ais_dictionary_m2m": { "u": 1, "c": 4 },
+      "gsw_change_log": { "u": 1, "c": 1 },
+      "par_dashboard_visibility": { "u": 1, "c": 1 },
+      "sn_pipeline_environment": { "u": 1, "c": 2 },
+      "sn_pipeline_pipeline": { "u": 1, "c": 3 },
+      "sys_app": { "u": 2, "c": 5 },
+      "sys_app_application": { "u": 1, "c": 1 },
+      "sys_app_module": { "u": 1, "c": 1 },
+      "sys_declarative_action_assignment": { "u": 1, "c": 3 },
+      "sys_declarative_action_model_field": { "u": 1, "c": 1 },
+      "sys_documentation": { "u": 1, "c": 4 },
+      "sys_embedded_help_role": { "u": 1, "c": 2 },
+      "sys_hub_flow": { "u": 1, "c": 3 },
+      "sys_notification_category": { "u": 1, "c": 1 },
+      "sys_security_acl": { "u": 1, "c": 2 },
+      "sys_sg_applet_launcher_tab": { "u": 1, "c": 1 },
+      "sys_sg_icon_section": { "u": 1, "c": 1 },
+      "sys_sg_item_stream": { "u": 1, "c": 2 },
+      "sys_sg_master_item": { "u": 1, "c": 1 },
+      "sys_sg_ui_rule_action": { "u": 1, "c": 1 },
+      "sys_sg_view_config_element": { "u": 1, "c": 3 },
+      "sys_store_app": { "u": 1, "c": 1 },
+      "sys_ui_action": { "u": 1, "c": 2 },
+      "sys_ui_list": { "u": 1, "c": 1 },
+      "sys_ui_section": { "u": 1, "c": 1 },
+      "sys_user_role": { "u": 1, "c": 2 },
+      "sys_user_role_contains": { "u": 1, "c": 1 },
+      "sys_ux_applicability": { "u": 1, "c": 1 },
+      "sys_ux_applicability_m2m_list": { "u": 1, "c": 1 },
+      "sys_ux_app_route": { "u": 1, "c": 3 },
+      "sys_ux_client_script": { "u": 1, "c": 1 },
+      "sys_ux_composite_data_template": { "u": 1, "c": 4 },
+      "sys_ux_list_category": { "u": 1, "c": 1 },
+      "sys_ux_list_menu_config": { "u": 1, "c": 1 },
+      "sys_ux_registry_m2m_category": { "u": 1, "c": 1 },
+      "sys_ux_ribbon_config": { "u": 1, "c": 1 },
+      "sys_ux_screen": { "u": 1, "c": 1 },
+      "sys_ux_screen_type": { "u": 1, "c": 5 },
+      "sys_ux_theme_asset": { "u": 1, "c": 2 }
+    }
+  }
+}

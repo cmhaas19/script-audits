@@ -182,6 +182,10 @@ var getPipelineStats = function() {
 
 var getUserPreferences = function() {
     var gr = new GlideAggregate("sys_user_preference");
+
+    if(!gr.isValid())
+        return {};
+    
     gr.addAggregate("COUNT");
     gr.addEncodedQuery("nameINservicenow_studio.scope.based.tab.grouping.enabled");
     gr.setWorkflow(false);
@@ -210,6 +214,10 @@ var getUserPreferences = function() {
 
 var getBookmarks = function() {
     var gr = new GlideAggregate("sn_udc_collection_item");
+
+    if(!gr.isValid())
+        return {};
+
     gr.addAggregate("COUNT");
     gr.setWorkflow(false);
     gr.groupBy("file_table");
@@ -234,6 +242,10 @@ var getBookmarks = function() {
 
 var getDeveloperHistory = function() {
     var gr = new GlideAggregate("sn_udc_developer_history");
+
+    if(!gr.isValid())
+        return {};
+
     gr.addAggregate("COUNT");
     gr.addEncodedQuery("context=servicenow_studio^last_accessed>javascript:gs.beginningOfLast12Months()");
     gr.setWorkflow(false);

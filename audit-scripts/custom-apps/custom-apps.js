@@ -55,16 +55,16 @@
     
             apps[className][appId] = { 
                 s: gr.scope.toString(), 
-                c: new GlideDateTime(gr.getValue("sys_created_on")).getDate().getByFormat("YYYY-MM")
+                c: gr.sys_created_on.nil() ? null : new GlideDateTime(gr.getValue("sys_created_on")).getDate().getByFormat("YYYY-MM")
             };
 
             var ide = null;
 
-            if(!gr.ide_created.nil()) {
+            if(gr.isValidField("ide_created") && !gr.ide_created.nil()) {
                 ide = gr.getValue("ide_created");
             }
 
-            if(ide == null && !gr.package_json.nil()) {
+            if(ide == null && gr.isValidField("package_json") && !gr.package_json.nil()) {
                 ide = "IDE";
             }
 
@@ -79,4 +79,3 @@
     gs.print(JSON.stringify(result));
 
 })();
-
