@@ -7,10 +7,10 @@ const moment = require("moment");
 var _ = require('lodash');
 
 var loadPackages = () => {
-    var fileName = path.join(__dirname, "packages.csv");
+    var fileName = path.join(__dirname, "packages.json");
 
     var promise = new Promise((resolve, reject) => {
-        FileLoader.parseCsvFile(fileName).then((auditData) => {
+        FileLoader.parseFile(fileName).then((auditData) => {
             var packages = {};
     
             auditData.forEach((row) => {
@@ -44,7 +44,7 @@ var isCustomArtifact = (artifact) => {
     // Load packages
     //
     loadPackages().then((packages) => {
-        var fileName = path.join(__dirname, "artifacts.csv");
+        var fileName = path.join(__dirname, "artifacts.json");
 
         console.log("Found " + Object.keys(packages).length + " packages");
 
@@ -66,26 +66,29 @@ var isCustomArtifact = (artifact) => {
                     }
     
                     var instancePurpose = row.instance.purpose;
-                    
-                    for(var scope in row.data.customAppArtifacts.artifacts){
-                        var app = row.data.customAppArtifacts.artifacts[scope];
-    
-                        if(moment(app.createdOn).isSameOrAfter(yearsAgo)) {
-                            if(scopes[scope] == undefined || instancePurpose == 'Production') {
-                                scopes[scope] = {
-                                    artifacts: {},
-                                    instance: { name: "", purpose: "", customer: "" },
-                                    createdOn: app.createdOn
-                                };
-        
-                                for(var artifactKey in app.artifacts){
-                                    var artifact = artifactKeys[artifactKey];
-                                    scopes[scope].artifacts[artifact] = app.artifacts[artifactKey];
-                                }
 
-                                scopes[scope].instance.name = row.instanceName;
-                                scopes[scope].instance.purpose = row.instance.purpose;
-                                scopes[scope].instance.customer = row.instance.customer;
+                    if(instancePurpose == 'Production') {
+                    
+                        for(var scope in row.data.customAppArtifacts.artifacts){
+                            var app = row.data.customAppArtifacts.artifacts[scope];
+        
+                            if(moment(app.createdOn).isSameOrAfter(yearsAgo)) {
+                                if(scopes[scope] == undefined || instancePurpose == 'Production') {
+                                    scopes[scope] = {
+                                        artifacts: {},
+                                        instance: { name: "", purpose: "", customer: "" },
+                                        createdOn: app.createdOn
+                                    };
+            
+                                    for(var artifactKey in app.artifacts){
+                                        var artifact = artifactKeys[artifactKey];
+                                        scopes[scope].artifacts[artifact] = app.artifacts[artifactKey];
+                                    }
+
+                                    scopes[scope].instance.name = row.instanceName;
+                                    scopes[scope].instance.purpose = row.instance.purpose;
+                                    scopes[scope].instance.customer = row.instance.customer;
+                                }
                             }
                         }
                     }
@@ -158,6 +161,7 @@ var isCustomArtifact = (artifact) => {
                     { header: 'Instance', key: 'instance', width: 20 },
                     { header: 'Purpose', key: 'purpose', width: 18 },
                     { header: 'Customer', key: 'customer', width: 28 },
+                    { header: 'Key', key: 'key', width: 28 },
                     { header: 'Scope', key: 'scope', width: 22 },
                     { header: 'Scope Created', key: 'sc', width: 20 },
                     { header: 'Scope Created YYYY-MM', key: 'scy', width: 20 },
@@ -185,6 +189,7 @@ var isCustomArtifact = (artifact) => {
                             app.instance.name, 
                             app.instance.purpose, 
                             app.instance.customer, 
+                            app.instance.name + "-" + scope,
                             scope, 
                             app.createdOn, 
                             moment(app.createdOn).format("YYYY-MM"), 
