@@ -67,12 +67,12 @@ var isCustomArtifact = (artifact) => {
     
                     var instancePurpose = row.instance.purpose;
 
-                    if(instancePurpose == 'Production') {
+                    //if(instancePurpose == 'Production') {
                     
                         for(var scope in row.data.customAppArtifacts.artifacts){
                             var app = row.data.customAppArtifacts.artifacts[scope];
         
-                            if(moment(app.createdOn).isSameOrAfter(yearsAgo)) {
+                            //if(moment(app.createdOn).isSameOrAfter(yearsAgo)) {
                                 if(scopes[scope] == undefined || instancePurpose == 'Production') {
                                     scopes[scope] = {
                                         artifacts: {},
@@ -89,9 +89,9 @@ var isCustomArtifact = (artifact) => {
                                     scopes[scope].instance.purpose = row.instance.purpose;
                                     scopes[scope].instance.customer = row.instance.customer;
                                 }
-                            }
+                            //}
                         }
-                    }
+                    //}
                 }
             });
     
@@ -152,7 +152,47 @@ var isCustomArtifact = (artifact) => {
 
                 console.log("Processed roll-up worksheet");
             })();
+
+            (function(){
+                var worksheet = wb.addWorksheet("Artifact Counts By Scope");    
     
+                worksheet.columns = [
+                    { header: 'Instance', key: 'instance', width: 20 },
+                    { header: 'Purpose', key: 'purpose', width: 18 },
+                    { header: 'Customer', key: 'customer', width: 28 },
+                    { header: 'Key', key: 'key', width: 28 },
+                    { header: 'Scope', key: 'scope', width: 22 },
+                    { header: 'Scope Created', key: 'sc', width: 20 },
+                    { header: 'Scope Created YYYY-MM', key: 'scy', width: 20 },
+                    { header: 'Count', key: 'count', width: 10 }
+                ];
+    
+                for(var scope in scopes){
+                    var app = scopes[scope];
+                    totalArtifacts = 0;
+        
+                    for(var artifact in app.artifacts) {
+                        totalArtifacts += app.artifacts[artifact];
+                    }
+
+                    worksheet.addRow([
+                        app.instance.name, 
+                        app.instance.purpose, 
+                        app.instance.customer, 
+                        app.instance.name + "-" + scope,
+                        scope, 
+                        app.createdOn, 
+                        moment(app.createdOn).format("YYYY-MM"), 
+                        totalArtifacts]).commit();  
+                }
+
+                worksheet.commit();
+
+                console.log("Processed artifact counts by scope worksheet");
+
+            })();
+    
+            /*
             (function(){
                 var worksheet = wb.addWorksheet("Artifacts - All");    
                 var rowCount = 0;        
@@ -208,6 +248,7 @@ var isCustomArtifact = (artifact) => {
                 console.log("Processed all artifacts worksheet. Rows: " + rowCount);
 
             })();
+            */
 
             wb.commit().then(() => {
                 console.log("Created file");

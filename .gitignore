@@ -4,6 +4,8 @@
 results.json
 aes.json
 creator-studio.json
+audit-parsers/custom-app-artifacts/artifacts.json
+audit-parsers/custom-app-artifacts/packages.json
 
 # Ignore all .csv files except for the ones under audit-parsers/common/files
 *.csv

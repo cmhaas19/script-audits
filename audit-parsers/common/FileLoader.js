@@ -356,6 +356,7 @@ var parseCsvFile = (fileName) => {
     return parseFile(fileName);
 };
 
+exports.parseFile = parseFile;
 exports.parseCsvFile = parseCsvFile;
 exports.loadInstanceData = loadInstanceData;
 exports.loadAccountData = loadAccountData;

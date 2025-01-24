@@ -19,10 +19,17 @@ var loadCustomApps = () => {
                     for(var className in row.data.apps) {
                         for(var id in row.data.apps[className]) {
                             var app = row.data.apps[className][id];
+                            var createdOn = (app.c == undefined ? "1900-01-01" : app.c);
+                            var updatedOn = (app.u == undefined ? createdOn : app.u);
 
                             var customApp = {
                                 instance: row.instance,
-                                createdOn: app.c,
+                                createdOn: createdOn,
+                                createdOnYYYYMM: moment(createdOn, 'YYYY-MM-DD').format("YYYY-MM"),
+                                updatedOn: updatedOn,
+                                updatedOnYYYYMM: moment(updatedOn, 'YYYY-MM-DD').format("YYYY-MM"),
+                                daysIdle: moment().diff(updatedOn, 'days'),
+                                inactiveSinceCreation: (createdOn == updatedOn),
                                 scope: app.s,
                                 scopePrefix: "",
                                 ide: (app.i != undefined ? app.i : ""),
@@ -110,9 +117,16 @@ var writeCustomAppsWorksheets = (wb, customApps) => {
             { header: 'Is AES App', width: 22 },
             { header: 'Is Sys App', width: 22 },
             { header: 'Is Sys Store App', width: 22 },
+            { header: 'Days Idle', width: 22 },
+            { header: 'Inactive Since Creation', width: 26 },
+            { header: 'Created On', width: 22 },
             { header: 'Created On YYYY-MM', width: 22 },
             { header: 'Created On YYYY', width: 22 },
-            { header: 'Created On QTR', width: 22 }
+            { header: 'Created On QTR', width: 22 },
+            { header: 'Updated On', width: 22 },
+            { header: 'Updated On YYYY-MM', width: 22 },
+            { header: 'Updated On YYYY', width: 22 },
+            { header: 'Updated On QTR', width: 22 }
         ]);
 
         for(var instanceName in customApps) {
@@ -125,8 +139,14 @@ var writeCustomAppsWorksheets = (wb, customApps) => {
                     instanceCount: 0,
                     accounts: { },
                     createdOn: apps[id].createdOn,
+                    createdOnYearMonth: moment(apps[id].createdOn).format("YYYY-DD"),
                     createdOnYear: moment(apps[id].createdOn).format("YYYY"),
                     createdOnQtr: `${moment(apps[id].createdOn, "YYYY-MM").format("YYYY")}-Q${moment(apps[id].createdOn, "YYYY-MM").quarter()}`,
+                    updatedOn: apps[id].updatedOn,
+                    updatedOnYearMonth: moment(apps[id].updatedOn).format("YYYY-DD"),
+                    updatedOnYear: moment(apps[id].updatedOn).format("YYYY"),
+                    updatedOnQtr: `${moment(apps[id].updatedOn, "YYYY-MM").format("YYYY")}-Q${moment(apps[id].updatedOn, "YYYY-MM").quarter()}`,
+                    prefix: apps[id].prefix,
                     prefix: apps[id].prefix,
                     vendorPrefix: apps[id].vendorPrefix,
                     scopePrefix: apps[id].scopePrefix,
@@ -138,7 +158,9 @@ var writeCustomAppsWorksheets = (wb, customApps) => {
                     isSysStoreApp: apps[id].isSysStoreApp,
                     isAESApp: apps[id].isAESApp,
                     isProduction: apps[id].isProduction,
-                    isPDI: apps[id].isPDI
+                    isPDI: apps[id].isPDI,
+                    daysIdle: apps[id].daysIdle,
+                    inactiveSinceCreation: apps[id].inactiveSinceCreation
                 };
 
                 ws.addStandardRow(instanceName, apps[id].instance, {
@@ -154,9 +176,16 @@ var writeCustomAppsWorksheets = (wb, customApps) => {
                     isAESApp: app.isAESApp,
                     isSysApp: app.isSysApp,
                     isSysStoreApp: app.isSysStoreApp,
+                    daysIdle: app.daysIdle,
+                    inactiveSinceCreation: app.inactiveSinceCreation,
                     createdOn: app.createdOn,
+                    createdOnYearMonth: app.createdOnYearMonth,
                     createdOnYear: app.createdOnYear,
-                    createdOnQtr: app.createdOnQtr
+                    createdOnQtr: app.createdOnQtr,
+                    updatedOn: app.updatedOn,
+                    updatedOnYearMonth: app.updatedOnYearMonth,
+                    updatedOnYear: app.updatedOnYear,
+                    updatedOnQtr: app.updatedOnQtr
                 });
     
                 if(distinctApps[id] == undefined)
@@ -207,9 +236,16 @@ var writeCustomAppsWorksheets = (wb, customApps) => {
             { header: 'Is Sys App', width: 22 },
             { header: 'Is Sys Store App', width: 22 },
             { header: 'Is Production Instance', width: 22 },
+            { header: 'Days Idle', width: 22 },
+            { header: 'Inactive Since Creation', width: 26 },
+            { header: 'Created On', width: 22 },
             { header: 'Created On YYYY-MM', width: 22 },
             { header: 'Created On YYYY', width: 22 },
-            { header: 'Created On QTR', width: 22 }
+            { header: 'Created On QTR', width: 22 },
+            { header: 'Updated On', width: 22 },
+            { header: 'Updated On YYYY-MM', width: 22 },
+            { header: 'Updated On YYYY', width: 22 },
+            { header: 'Updated On QTR', width: 22 }
         ]);
         
         for(var id in distinctApps) {
@@ -237,12 +273,19 @@ var writeCustomAppsWorksheets = (wb, customApps) => {
                 isSysApp: app.isSysApp,
                 isSysStoreApp: app.isSysStoreApp,
                 isProductionInstance: app.isProduction,
+                daysIdle: app.daysIdle,
+                inactiveSinceCreation: app.inactiveSinceCreation,
                 createdOn: app.createdOn,
+                createdOnYearMonth: app.createdOnYearMonth,
                 createdOnYear: app.createdOnYear,
-                createdOnQtr: app.createdOnQtr
+                createdOnQtr: app.createdOnQtr,
+                updatedOn: app.updatedOn,
+                updatedOnYearMonth: app.updatedOnYearMonth,
+                updatedOnYear: app.updatedOnYear,
+                updatedOnQtr: app.updatedOnQtr
             });
         }
-    })();    
+    })();
 };
 
 (function(){
