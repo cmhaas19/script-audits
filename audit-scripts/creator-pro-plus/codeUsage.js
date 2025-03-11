@@ -20,12 +20,10 @@
 
     // Turn off excess logging for the Regex Matcher
     // NOTE: Be sure to remove this before submitting the script audit, the instance analyzer team considers these calls a write audit
-    /*
     var wlm = GlideWhiteListManager.get();
     if (!wlm.isVisibleMember("java.util.regex.Matcher", "find", "()Z")) {
         wlm.addToMemberWhitelist("java.util.regex.Matcher", "find", "()Z");
     }
-    */
 
     //
     // Initialize date ranges
