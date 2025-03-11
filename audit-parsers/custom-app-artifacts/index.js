@@ -67,7 +67,7 @@ var isCustomArtifact = (artifact) => {
     
                     var instancePurpose = row.instance.purpose;
 
-                    //if(instancePurpose == 'Production') {
+                    if(instancePurpose == 'Production') {
                     
                         for(var scope in row.data.customAppArtifacts.artifacts){
                             var app = row.data.customAppArtifacts.artifacts[scope];
@@ -91,7 +91,7 @@ var isCustomArtifact = (artifact) => {
                                 }
                             //}
                         }
-                    //}
+                    }
                 }
             });
     
@@ -191,8 +191,7 @@ var isCustomArtifact = (artifact) => {
                 console.log("Processed artifact counts by scope worksheet");
 
             })();
-    
-            /*
+
             (function(){
                 var worksheet = wb.addWorksheet("Artifacts - All");    
                 var rowCount = 0;        
@@ -225,21 +224,24 @@ var isCustomArtifact = (artifact) => {
                             lbl = table.lbl;
                         }
 
-                        worksheet.addRow([
-                            app.instance.name, 
-                            app.instance.purpose, 
-                            app.instance.customer, 
-                            app.instance.name + "-" + scope,
-                            scope, 
-                            app.createdOn, 
-                            moment(app.createdOn).format("YYYY-MM"), 
-                            artifact, 
-                            lbl, 
-                            pkg, 
-                            isCustomArtifact(artifact),
-                            app.artifacts[artifact]]).commit();  
-                        
-                            rowCount++;
+                        if(artifact == "sys_hub_flow") {
+
+                            worksheet.addRow([
+                                app.instance.name, 
+                                app.instance.purpose, 
+                                app.instance.customer, 
+                                app.instance.name + "-" + scope,
+                                scope, 
+                                app.createdOn, 
+                                moment(app.createdOn).format("YYYY-MM"), 
+                                artifact, 
+                                lbl, 
+                                pkg, 
+                                isCustomArtifact(artifact),
+                                app.artifacts[artifact]]).commit();  
+                            
+                                rowCount++;
+                        }
                     }
                 }
 
@@ -248,7 +250,6 @@ var isCustomArtifact = (artifact) => {
                 console.log("Processed all artifacts worksheet. Rows: " + rowCount);
 
             })();
-            */
 
             wb.commit().then(() => {
                 console.log("Created file");
