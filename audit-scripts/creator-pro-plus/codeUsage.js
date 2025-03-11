@@ -30,11 +30,14 @@
     //
     // Initialize date ranges
     //
-    //var today = new GlideDateTime();
-    //DATE_RANGE.startDate.setYearUTC((today.getYear() - 1));
-    //DATE_RANGE.endDate.setYearUTC((today.getYear() - 1));          
-    RESULTS.log["DateRanges"] = { s: DATE_RANGE.startDate.getValue(), e: DATE_RANGE.endDate.getValue()};        
+    DATE_RANGE.startDate = new GlideDateTime();
+    DATE_RANGE.startDate.addMonthsUTC(-12);
+    DATE_RANGE.startDate.setValue(DATE_RANGE.startDate.getDate() + " 00:00:00");
 
+    DATE_RANGE.endDate = new GlideDateTime();
+    DATE_RANGE.endDate.setValue(DATE_RANGE.endDate.getDate() + " 23:59:59");
+    
+    RESULTS.log["DateRanges"] = { s: DATE_RANGE.startDate.getValue(), e: DATE_RANGE.endDate.getValue()};
 
     //
     // Get metadata tables with script fields
